@@ -1,16 +1,18 @@
 #include "headers.h"
 
 void clearResources(int);
-void readInputFiles();
-enum SchedulingAlgorithms {HPF, SRTN, RR, MLFQ};
+int **readInputFiles();
+enum SchedulingAlgorithms {HPF, SRTN, RR};
 
 int main(int argc, char * argv[])
 {
     signal(SIGINT, clearResources);
     // TODO Initialization
     // 1. Read the input files.
-    readInputFiles();
+    int **processes;
+    processes = readInputFiles();
     // 2. Ask the user for the chosen scheduling algorithm and its parameters, if there are any.
+    
     // 3. Initiate and create the scheduler and clock processes.
     // 4. Use this function after creating the clock process to initialize clock
 //    initClk();
@@ -29,7 +31,7 @@ void clearResources(int signum)
     //TODO Clears all resources in case of interruption
 }
 
-void readInputFiles()
+int **readInputFiles()
 {
     FILE *file = fopen("processes.txt", "r");
     char *line = malloc(100 * sizeof(char));
@@ -50,11 +52,8 @@ void readInputFiles()
             token = strtok(NULL, "\t");
             j++;
         }
-        printf("%d %d %d %d\n", processes[i][0], processes[i][1], processes[i][2], processes[i][3]);
     }
     
-    while (1){
-    
-    }
+    return processes;
     
 }
