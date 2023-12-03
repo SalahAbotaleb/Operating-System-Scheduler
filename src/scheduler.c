@@ -44,10 +44,13 @@ static void addToRR(PCB *pcbEntry)
 
 static void addToHPF(PCB *pcbEntry)
 {
+    // 2 5 7 8
+    //insertion
 }
 
 static void addToSRTN(PCB *pcbEntry)
 {
+    //if as8ar call function handle
 }
 
 static receiveProcesses()
@@ -59,6 +62,18 @@ int main(int argc, char *argv[])
     initClk();
 
     // TODO implement the scheduler :)
+    //while (1) {
+        // 1. read queue if there are any new processes
+        // case (algorithm)
+            // HFP:
+                // addToHPF(pcbEntry)
+            // SRTN:
+                // addToSRTN(pcbEntry)
+            // RR:
+                // addToRR(pcbEntry)
+                // check kol cycle
+        // check lw galy signal enha 5lst
+    
     // upon termination release the clock resources.
 
     destroyClk(true);
