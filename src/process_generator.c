@@ -1,20 +1,5 @@
 #include "headers.h"
 
-typedef enum SchedulingAlgorithms
-{
-    HPF,
-    SRTN,
-    RR
-} SchedulingAlgorithm;
-
-typedef struct Process
-{
-    int id;
-    int arrivalTime;
-    int runTime;
-    int priority;
-} Process;
-
 void clearResources(int);
 Process *readInputFiles();
 SchedulingAlgorithm chooseSchedulingAlgorithm();
@@ -85,7 +70,7 @@ Process *readInputFiles()
     FILE *file = fopen("processes.txt", "r");
     char *line = malloc(100 * sizeof(char));
 
-    Process *processes = malloc(20 * sizeof(Process));
+    Process *processes = malloc(20 * sizeof(Process)); // not dynamic
 
     int i = 0;
     while (fgets(line, 100, file))

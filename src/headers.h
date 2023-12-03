@@ -18,6 +18,16 @@ typedef short bool;
 
 #define SHKEY 300
 
+typedef enum SchedulingAlgorithms {
+    HPF, SRTN, RR
+} SchedulingAlgorithm;
+
+typedef struct Process {
+    int id;
+    int arrivalTime;
+    int runTime;
+    int priority;
+} Process;
 
 ///==============================
 //don't mess with this variable//
