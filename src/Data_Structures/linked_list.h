@@ -33,7 +33,7 @@ LinkedList *CreateLinkedList();
  * @param nodePtr pointer to node
  * @return void
  */
-void addNode(LinkedList *listPtr, Node *nodePtr);
+void AddNode(LinkedList *listPtr, Node *nodePtr);
 
 /**
  * @brief adds node to end of linked list
@@ -55,23 +55,22 @@ void AddNodeToFront(LinkedList *listPtr, Node *nodePtr);
  * @brief removes node from linked list
  * @param listPtr pointer to linked list
  * @param nodePtr pointer to node
- * @return void
+ * @return pointer to node
  */
-void RemoveNode(LinkedList *listPtr, Node *nodePtr);
+void *RemoveNode(LinkedList *listPtr, Node *nodePtr);
 
 /**
  * @brief removes node from front of linked list
  * @param listPtr pointer to linked list
- * @return void
+ * @return pointer to node
  */
-void RemoveNodeFromFront(LinkedList *listPtr);
+void *RemoveNodeFromFront(LinkedList *listPtr);
 
 /**
  * @brief removes node from back of linked list
  * @param listPtr pointer to linked list
- * @return void
+ * @return pointer to node
  */
-void RemoveNodeFromBack(LinkedList *listPtr);
-
+void *RemoveNodeFromBack(LinkedList *listPtr);
 
 #endif
