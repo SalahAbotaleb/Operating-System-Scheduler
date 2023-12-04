@@ -18,14 +18,23 @@ typedef short bool;
 
 #define SHKEY 300
 
+typedef enum {
+    RUN,
+    BLOCKED,
+    READY
+} State;
+
 typedef enum SchedulingAlgorithms {
     HPF, SRTN, RR
 } SchedulingAlgorithm;
 
 typedef struct Process {
+    State state;
     int id;
     int arrivalTime;
     int runTime;
+    int remainingTime;
+    int finishTime;
     int priority;
 } Process;
 
