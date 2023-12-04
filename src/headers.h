@@ -18,6 +18,11 @@ typedef short bool;
 
 #define SHKEY 300
 
+typedef struct buffer_item {
+    int mtype;
+    char *mtext;
+} message;
+
 typedef enum {
     RUN,
     BLOCKED,

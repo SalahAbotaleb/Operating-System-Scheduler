@@ -1,4 +1,6 @@
 #include "headers.h"
+#include "Data_Structures/linked_list.h"
+#include "Data_Structures/pqueue.h"
 
 typedef u_int16_t ProcessID;
 typedef u_int16_t Time;
@@ -18,7 +20,9 @@ typedef u_int16_t Priority;
 //
 //} PCB;
 
-typedef void (*Algorithm) (Process *);
+typedef void (*Algorithm) (void *);
+typedef void (*AlgorithmAddList) (Process *);
+typedef void *(*AlgorithmCreateList) ();
 
 //static void *createPEntry (Process *newProcess) {
 //    Process *PEntry = malloc(sizeof(Process));
@@ -34,18 +38,33 @@ typedef void (*Algorithm) (Process *);
 //    free(pcbEntry);
 //}
 //
-//static void addToRR (PCB *pcbEntry) {
-//}
-//
-//static void addToHPF (PCB *pcbEntry) {
-//    // 2 5 7 8
-//    // insertion
-//}
-//
-//static void addToSRTN (PCB *pcbEntry) {
-//    // if as8ar call function handle
-//}
-//
+static void *createLL () {
+    return CreateLinkedList();
+}
+static void *createPQ () {
+//    pqueue_init()
+}
+
+static void addToRR (LinkedList *list, Process *Pentry) {
+    AddNodeToBack(list, CreateNode(Pentry));
+}
+
+
+static void addToHPF (pqueue_t *pq, Process *Pentry) {
+//    pqueue_insert(pq, Pentry);
+}
+
+static void addToSRTN (pqueue_t *pq, Process *Pentry) {
+//    pqueue_insert(pq, Pentry);
+    key_t key_id = ftok("keyfile", 90);               // create unique key
+    int msgq_id = msgget(key_id, 0666 | IPC_CREAT); // create message queue and return id
+    
+    message *send_val = malloc(sizeof(message));
+    send_val->mtype = 1;
+    send_val->mtext = "0";
+    msgsnd(msgq_id, send_val, sizeof(message ), !IPC_NOWAIT);
+}
+
 static void processRR (Process *Pentry) {
     int clock = getClk();
     
@@ -60,7 +79,7 @@ static void processRR (Process *Pentry) {
 //    // if as8ar call function handle
 //}
 
-static void handleProcesses (Algorithm algorithm) {
+static void handleProcesses (Algorithm algorithm, AlgorithmAddList addList, AlgorithmCreateList createList) {
     key_t key_id;
     int rec_val, msgq_id;
     
@@ -72,12 +91,14 @@ static void handleProcesses (Algorithm algorithm) {
         exit(-1);
     }
     Process *receivedProcess = malloc(sizeof(Process));
+    void *list = createList();
     while (true) {
         // not sure of process size
         rec_val = msgrcv(msgq_id, receivedProcess, sizeof(Process), 0, IPC_NOWAIT);
         if (rec_val != -1) {
-            algorithm(receivedProcess);
+            addList(receivedProcess);
         }
+        algorithm(list);
     }
 }
 
