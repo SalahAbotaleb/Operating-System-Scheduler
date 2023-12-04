@@ -12,6 +12,7 @@ typedef struct linked_list
 {
   Node *head;
   Node *tail;
+  int size;
 } LinkedList;
 
 /**
