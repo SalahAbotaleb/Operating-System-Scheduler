@@ -87,8 +87,9 @@ Process *readInputFiles()
         processes[i].runTime = atoi(token);
         token = strtok(NULL, "\t");
         processes[i].priority = atoi(token);
-        printf("%d\t%d\t%d\t%d\n", processes[i].id, processes[i].arrivalTime, processes[i].runTime,
-               processes[i].priority);
+        
+        processes[i].remainingTime = processes[i].runTime;
+        processes[i].state = READY;
         i++;
     }
 
