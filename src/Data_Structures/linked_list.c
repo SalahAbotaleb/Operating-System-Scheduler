@@ -13,6 +13,7 @@ Node *CreateNode(void *obj)
 
 void AddNodeToBack(LinkedList *listPtr, Node *nodePtr)
 {
+    listPtr->size++;
     if (listPtr->head == NULL)
     {
         listPtr->head = nodePtr;
@@ -28,6 +29,7 @@ void AddNodeToBack(LinkedList *listPtr, Node *nodePtr)
 
 void AddNodeToFront(LinkedList *listPtr, Node *nodePtr)
 {
+    listPtr->size++;
     if (listPtr->head == NULL)
     {
         listPtr->head = nodePtr;
@@ -46,12 +48,14 @@ LinkedList *CreateLinkedList()
     LinkedList *list = (LinkedList *)malloc(sizeof(LinkedList));
     list->head = NULL;
     list->tail = NULL;
+    list->size = 0;
     return list;
 }
 
 void *RemoveNodeFromFront(LinkedList *listPtr)
 {
-    Node *currNode = head;
+    listPtr->size--;
+//    Node *currNode = listPtr->head;
     if (listPtr->head == NULL)
     {
         return NULL;
@@ -67,12 +71,13 @@ void *RemoveNodeFromFront(LinkedList *listPtr)
         listPtr->head = listPtr->head->nxt;
         listPtr->head->prev = NULL;
     }
-    return currNode;
+//    return currNode;
 }
 
 void *RemoveNodeFromBack(LinkedList *listPtr)
 {
-    Node *currNode = tail;
+//    Node *currNode = tail;
+    listPtr->size--;
     if (listPtr->head == NULL)
     {
         return NULL;
@@ -88,11 +93,12 @@ void *RemoveNodeFromBack(LinkedList *listPtr)
         listPtr->tail = listPtr->tail->prev;
         listPtr->tail->nxt = NULL;
     }
-    return currNode;
+//    return currNode;
 }
 
 void *RemoveNode(LinkedList *listPtr, Node *nodePtr)
 {
+    listPtr->size--;
     if (nodePtr == listPtr->head)
     {
         return RemoveNodeFromFront(listPtr);
@@ -106,5 +112,5 @@ void *RemoveNode(LinkedList *listPtr, Node *nodePtr)
         nodePtr->prev->nxt = nodePtr->nxt;
         nodePtr->nxt->prev = nodePtr->prev;
     }
-    return nodePtr;
+//    return nodePtr;
 }
