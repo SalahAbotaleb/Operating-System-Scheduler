@@ -62,11 +62,36 @@ static void addToSRTN (pqueue_t *pq, Process *Pentry) {
     message *send_val = malloc(sizeof(message));
     send_val->mtype = 1;
     send_val->mtext = "0";
-    msgsnd(msgq_id, send_val, sizeof(message ), !IPC_NOWAIT);
+    msgsnd(msgq_id, send_val, sizeof(message), !IPC_NOWAIT);
 }
 
-static void processRR (Process *Pentry) {
+int lastclk = 0;
+Node *lastNode = NULL;
+static void processRR (LinkedList *list) {
     int clock = getClk();
+    if (clock != lastclk) {
+        lastclk = clock;
+        if (list->size > 0) {
+            if (lastNode == NULL) {
+                lastNode = list->head;
+            } else {
+                // TODO stop current process
+                if (lastNode->nxt == NULL) {
+                    lastNode = list->head;
+                } else {
+                    lastNode = lastNode->nxt;
+                }
+            }
+            Process *process = lastNode->data;
+            process->remainingTime--;
+            if (process->remainingTime == 0) {
+                // TODO send message to process generator
+                // TODO delete node
+            } else {
+                // TODO start process
+            }
+        }
+    }
     
 }
 //
