@@ -23,6 +23,8 @@ typedef struct
 
 } PCB;
 
+typedef void (*Algorithm)(PCB *);
+
 static void *createPCBEntry(Process *newProcess)
 {
     PCB *newPCBEntry = (PCB *)malloc(sizeof(PCB));
@@ -45,16 +47,53 @@ static void addToRR(PCB *pcbEntry)
 static void addToHPF(PCB *pcbEntry)
 {
     // 2 5 7 8
-    //insertion
+    // insertion
 }
 
 static void addToSRTN(PCB *pcbEntry)
 {
-    //if as8ar call function handle
+    // if as8ar call function handle
 }
 
-static receiveProcesses()
+static void processRR(PCB *pcbEntry)
 {
+}
+
+static void processHPF(PCB *pcbEntry)
+{
+    // 2 5 7 8
+    // insertion
+}
+
+static void processSRTN(PCB *pcbEntry)
+{
+    // if as8ar call function handle
+}
+
+static void handleProcesses(Algorithm algorithm)
+{
+    key_t key_id;
+    int rec_val, msgq_id;
+
+    key_id = ftok("keyfile", 65);               // create unique key
+    msgq_id = msgget(key_id, 0666 | IPC_CREAT); // create message queue and return id
+
+    if (msgq_id == -1)
+    {
+        perror("Error in create");
+        exit(-1);
+    }
+    Process receivedProcess;
+    while (true)
+    {
+        // not sure of process size
+        rec_val = msgrcv(msgq_id, &receivedProcess, sizeof(Process), 0, IPC_NOWAIT);
+        if (rec_val != -1)
+        {
+            PCB *newPCBEntry = createPCBEntry(&receivedProcess);
+            algorithm(newPCBEntry);
+        }
+    }
 }
 
 int main(int argc, char *argv[])
@@ -62,18 +101,18 @@ int main(int argc, char *argv[])
     initClk();
 
     // TODO implement the scheduler :)
-    //while (1) {
-        // 1. read queue if there are any new processes
-        // case (algorithm)
-            // HFP:
-                // addToHPF(pcbEntry)
-            // SRTN:
-                // addToSRTN(pcbEntry)
-            // RR:
-                // addToRR(pcbEntry)
-                // check kol cycle
-        // check lw galy signal enha 5lst
-    
+    // while (1) {
+    // 1. read queue if there are any new processes
+    // case (algorithm)
+    // HFP:
+    // addToHPF(pcbEntry)
+    // SRTN:
+    // addToSRTN(pcbEntry)
+    // RR:
+    // addToRR(pcbEntry)
+    // check kol cycle
+    // check lw galy signal enha 5lst
+
     // upon termination release the clock resources.
 
     destroyClk(true);
