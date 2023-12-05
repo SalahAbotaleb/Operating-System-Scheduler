@@ -66,18 +66,11 @@ static void addToHPF(pqueue_t *pq, PCB *pEntry)
 
 static void addToSRTN(pqueue_t *pq, PCB *pEntry)
 {
-    //    pqueue_insert(pq, Pentry);
-    key_t key_id = ftok("keyfile", 90);             // create unique key
-    int msgq_id = msgget(key_id, 0666 | IPC_CREAT); // create message queue and return id
-
-    message *send_val = malloc(sizeof(message));
-    send_val->mtype = 1;
-    send_val->mtext = "0";
-    msgsnd(msgq_id, send_val, sizeof(message), !IPC_NOWAIT);
+    int success = pqueue_insert(pq, pEntry);
 }
 
 int lastclk = 0;
-Node *lastNode = NULL;
+Node *lastNode = NULL;                                  // it is used in processRR & processSRTN
 static void processRR(LinkedList *list)
 {
     int clock = getClk();
@@ -128,9 +121,54 @@ static void processHPF(void *pcbEntry)
     // insertion
 }
 //
-// static void processSRTN (PCB *pcbEntry) {
-//    // if as8ar call function handle
-//}
+
+// static void processSRTN(pqueue_t *pq, PCB *pcbEntry)
+// {
+//     int clock = getClk();
+//     if (clock != lastclk)
+//     {
+//         lastclk = clock;
+//         if (pq->size > 0)
+//         {
+//             if (lastNode == NULL)
+//             {
+//                 lastNode = pq->head;                        
+//             }
+//             else
+//             {
+//                 // TODO stop current process
+//                 if (lastNode->nxt == NULL)
+//                 {
+//                     lastNode = pq->head;
+//                 }
+//                 else
+//                 {
+//                     lastNode = lastNode->nxt;
+//                 }
+//             }
+//             PCB *process = lastNode->data;
+//             /**
+//              * Note: read process it self
+//              * it is the one reponsible for sending that is has finished
+//              * There is no problem that we keep track of remaining time
+//              */
+//             process->remainingTime--;
+
+//             if (process->remainingTime == 0)
+//             {
+//                 // TODO send message to process generator
+//                 // TODO delete node
+//                 process->finishTime = getClk();
+//                 Node* finished_Node = pop(pq);
+//             }
+//             else
+//             {
+//                 // TODO start process
+
+//             }
+//         }
+//     }
+// }
 
 static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initDS)
 {
