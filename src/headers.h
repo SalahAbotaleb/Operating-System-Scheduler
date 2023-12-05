@@ -34,12 +34,9 @@ typedef enum SchedulingAlgorithms {
 } SchedulingAlgorithm;
 
 typedef struct Process {
-    State state;
     int id;
     int arrivalTime;
     int runTime;
-    int remainingTime;
-    int finishTime;
     int priority;
 } Process;
 

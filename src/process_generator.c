@@ -43,13 +43,20 @@ int main(int argc, char *argv[])
 
     // 6. Send the information to the scheduler at the appropriate time.
     int i = 0;
+    key_t key_id = ftok("keyfile", 65);               // create unique key
+    int msgq_id = msgget(key_id, 0666 | IPC_CREAT); // create message queue and return id
     while (processes[i].id != 0)
     {
         x = getClk();
+        int sent = 0;
         while (x == processes[i].arrivalTime)
         {
             // TODO send the process to the scheduler
-            i++;
+            if (sent == 0){
+                msgsnd(msgq_id, &processes[i], sizeof(Process), !IPC_NOWAIT);
+                sent = 1;
+                i++;
+            }
         }
     }
 
@@ -88,8 +95,6 @@ Process *readInputFiles()
         token = strtok(NULL, "\t");
         processes[i].priority = atoi(token);
         
-        processes[i].remainingTime = processes[i].runTime;
-        processes[i].state = READY;
         i++;
     }
 
