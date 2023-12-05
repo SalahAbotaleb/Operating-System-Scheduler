@@ -2,9 +2,12 @@ DS:=./Data_Structures
 build:
 	gcc process_generator.c -o process_generator.out
 	gcc clk.c -o clk.out
-	gcc scheduler.c -o scheduler.out
 	gcc process.c -o process.out
 	gcc test_generator.c -o test_generator.out
+	gcc -c Data_Structures/pqueue.c -o Data_Structures/pqueue.out
+	gcc -c Data_Structures/linked_list.c -o Data_Structures/linked_list.out
+	gcc -c scheduler.c -o schedulerStaged.out
+	gcc -o scheduler.out schedulerStaged.out Data_Structures/pqueue.out Data_Structures/linked_list.out
 
 clean:
 	rm -f *.out  processes.txt

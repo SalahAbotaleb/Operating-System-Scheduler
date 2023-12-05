@@ -20,8 +20,14 @@ typedef struct
 } PCB;
 
 typedef void (*algorithm)(void *);
-typedef void (*addItem)(Process *);
+typedef void (*addItem)(PCB *);
 typedef void *(*createDS)();
+
+static void addTest(PCB *process)
+{
+    printf("Date: %d, %d, %d, %d\n", process->arrivalTime, process->remainingTime,
+           process->priority, process->processID);
+}
 
 static void *createPCBEntry(Process *newProcess)
 {
@@ -116,10 +122,11 @@ static void processRR(LinkedList *list)
     }
 }
 //
-// static void processHPF (PCB *pcbEntry) {
-//    // 2 5 7 8
-//    // insertion
-//}
+static void processHPF(void *pcbEntry)
+{
+    // 2 5 7 8
+    // insertion
+}
 //
 // static void processSRTN (PCB *pcbEntry) {
 //    // if as8ar call function handle
@@ -157,6 +164,7 @@ int main(int argc, char *argv[])
 {
     initClk();
 
+    handleProcesses(processHPF, addTest, createPQ);
     // TODO implement the scheduler :)
     // while (1) {
     // 1. read queue if there are any new processes
