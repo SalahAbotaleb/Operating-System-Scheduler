@@ -16,6 +16,7 @@ typedef struct
     Time remainingTime;
     Time finishTime;
     Priority priority;
+    pid_t pid;
 
 } PCB;
 
@@ -71,6 +72,8 @@ static void addToSRTN(pqueue_t *pq, PCB *pEntry)
 
 int lastclk = 0;
 Node *lastNode = NULL;                                  // it is used in processRR & processSRTN
+GHashTable* forkedSet = g_hash_table_new(g_str_hash, g_str_equal);
+
 static void processRR(LinkedList *list)
 {
     int clock = getClk();
@@ -122,53 +125,74 @@ static void processHPF(void *pcbEntry)
 }
 //
 
-// static void processSRTN(pqueue_t *pq, PCB *pcbEntry)
-// {
-//     int clock = getClk();
-//     if (clock != lastclk)
-//     {
-//         lastclk = clock;
-//         if (pq->size > 0)
-//         {
-//             if (lastNode == NULL)
-//             {
-//                 lastNode = pq->head;                        
-//             }
-//             else
-//             {
-//                 // TODO stop current process
-//                 if (lastNode->nxt == NULL)
-//                 {
-//                     lastNode = pq->head;
-//                 }
-//                 else
-//                 {
-//                     lastNode = lastNode->nxt;
-//                 }
-//             }
-//             PCB *process = lastNode->data;
-//             /**
-//              * Note: read process it self
-//              * it is the one reponsible for sending that is has finished
-//              * There is no problem that we keep track of remaining time
-//              */
-//             process->remainingTime--;
+static void processSRTN(pqueue_t *pq)
+{
+    int clock = getClk();
+    if (clock != lastclk)
+    {
+        lastclk = clock;
+        if (pq->size > 0)
+        {
+            if (lastNode == NULL)
+            {
+                lastNode = pq->head;                        
+            }
+            else
+            {
+                // TODO stop current process
+                // if (lastNode->nxt == NULL)
+                // {
+                //     lastNode = pq->head;
+                // }
+                // else
+                // {
+                //     lastNode = lastNode->nxt;
+                // }
+            }
+            PCB *process = lastNode->data;
+            /**
+             * Note: read process it self
+             * it is the one reponsible for sending that is has finished
+             * There is no problem that we keep track of remaining time
+             */
+            process->remainingTime--;
 
-//             if (process->remainingTime == 0)
-//             {
-//                 // TODO send message to process generator
-//                 // TODO delete node
-//                 process->finishTime = getClk();
-//                 Node* finished_Node = pop(pq);
-//             }
-//             else
-//             {
-//                 // TODO start process
+            if (process->remainingTime == 0)
+            {
+                // TODO send message to process generator
+                // TODO delete node
+                process->finishTime = getClk();
+                Node* finished_Node = pop(pq);
+            }
+            else
+            {
+                if (process != pq->head->data)                                      //@uncertain delay
+                {
+                    if(process->state != (BLOCKED || READY || RUN))
+                    {
+                        kill(process->pid, SIGUSER1);                               // send signal to process to wakeup
+                    }
+                    else
+                    {
+                        int pid = fork();
+                        if (pid == 0)
+                        {
+                            char *args[] = {"./process.out", NULL};
+                            execvp(args[0], args);
+                        }
+                        else
+                        {
+                            process->startTime = getClk();
+                            process->mappedProcessID = pid;
+                        }
+                    }
+                }
+                
 
-//             }
-//         }
-//     }
-// }
+            }
+        }
+    }
+}
 
 static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initDS)
 {
@@ -192,7 +216,7 @@ static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initD
         if (rec_val != -1)
         {
             PCB *newPCBEntry = createPCBEntry(&receivedProcess);
-            addToDS(newPCBEntry);
+            addToDS(list, newPCBEntry);
         }
         algorithm(list);
     }
@@ -203,6 +227,8 @@ int main(int argc, char *argv[])
     initClk();
 
     handleProcesses(processHPF, addTest, createPQ);
+    handleProcesses(processSRTN, addToSRTN, createPQ);
+
     // TODO implement the scheduler :)
     // while (1) {
     // 1. read queue if there are any new processes

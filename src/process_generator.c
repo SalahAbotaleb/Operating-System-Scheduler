@@ -6,6 +6,10 @@ SchedulingAlgorithm chooseSchedulingAlgorithm();
 
 int main(int argc, char *argv[])
 {
+    ////
+    int pid = getpid();
+
+    ///
     signal(SIGINT, clearResources);
     // TODO Initialization
     // 1. Read the input files.
@@ -24,11 +28,12 @@ int main(int argc, char *argv[])
         execvp(args[0], args);
     }
 
-    pid_t clockPid = fork();
+    
+    pid_t clockPid = fork();                        //@uncertain this forks clock in sceduler and process_generator 
     if (clockPid == 0)
     {
         // clock process
-        char *args[] = {"./clk", NULL};
+        char *args[] = {"./clk.out", NULL};         //path of excutable file of clock is clk.out
         execvp(args[0], args);
     }
 
@@ -47,6 +52,11 @@ int main(int argc, char *argv[])
     int msgq_id = msgget(key_id, 0666 | IPC_CREAT); // create message queue and return id
     while (processes[i].id != 0)
     {
+        // if (x != getClk() && pid == getpid())
+        // {
+        //     printf("current time is %d\n", x);
+        // }
+
         x = getClk();
         int sent = 0;
         while (x == processes[i].arrivalTime)
@@ -58,6 +68,7 @@ int main(int argc, char *argv[])
                 i++;
             }
         }
+        //printf("process id: %d\n ", processes[i].id);
     }
 
     // 7. Clear clock resources
@@ -67,6 +78,8 @@ int main(int argc, char *argv[])
 void clearResources(int signum)
 {
     // TODO Clears all resources in case of interruption
+    killpg(getpgrp(), SIGINT);
+    exit(0);
 }
 
 /** @brief Reads the input files and returns a 2D array of processes
