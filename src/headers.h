@@ -21,6 +21,7 @@ typedef short bool;
 
 #define SHKEY 300
 #define MAX_NUM_OF_PROCESS 5
+#define PROCESS_EXECUTABLE_NAME "process.out"
 
 typedef struct buffer_item
 {
