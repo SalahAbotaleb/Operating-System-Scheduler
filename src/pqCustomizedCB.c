@@ -34,12 +34,12 @@ setRemainingTimeAsPriority(void *a, pqueue_pri_t pri)
 static size_t
 get_pos(void *a)
 {
-    return ((PCB *)a)->pq_position;
+    return ((PCB *)a)->pqPosition;
 }
 
 static void
 set_pos(void *a, size_t pos)
 {
-    ((PCB *)a)->pq_position = pos;
+    ((PCB *)a)->pqPosition = pos;
 }
 /**End of Priority Queue Callback functions**/

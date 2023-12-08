@@ -2,10 +2,23 @@
 #include "Data_Structures/linked_list.h"
 #include "Data_Structures/pqueue.h"
 #include "pqCustomizedCB.c"
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/wait.h>
+#include <signal.h>
 
 typedef void (*algorithm)(void *);
 typedef void (*addItem)(PCB *);
 typedef void *(*createDS)();
+
+static int lastclk = 0;
+static Node *lastNode = NULL; // it is used in processRR & processSRTN
+static PCB **processTable = NULL;
+static SchedulingAlgorithm algorithmType;
+static pqueue_t *pqHPF = NULL;  // priority queue for Highest Priority First Algorithm
+static pqueue_t *pqSRTN = NULL; // priority queue for Shortet Remaining Time Next Algorithm
+static LinkedList *llRR = NULL; // linked list for Round Robin Algorithm
 
 static void addTest(PCB *process)
 {
@@ -13,7 +26,7 @@ static void addTest(PCB *process)
            process->priority, process->processID);
 }
 
-static void *createPCBEntry(Process *newProcess)
+static PCB *createPCBEntry(Process *newProcess)
 {
     PCB *newPCBEntry = (PCB *)malloc(sizeof(PCB));
     newPCBEntry->arrivalTime = newProcess->arrivalTime;
@@ -53,12 +66,7 @@ static void addToSRTN(pqueue_t *pq, PCB *pEntry)
     int success = pqueue_insert(pq, pEntry);
 }
 
-int lastclk = 0;
-Node *lastNode = NULL; // it is used in processRR & processSRTN
-PCB **processTable = NULL;
-
-static void
-processRR(LinkedList *list)
+static void processRR(LinkedList *list)
 {
     int clock = getClk();
     if (clock != lastclk)
@@ -102,13 +110,16 @@ processRR(LinkedList *list)
     }
 }
 //
-static void processHPF(void *pcbEntry)
+static void processHPF(pqueue_t *pq)
 {
     // 2 5 7 8
     // insertion
 }
 //
 
+static void processSRTN(pqueue_t *pq)
+{
+}
 // static void processSRTN(pqueue_t *pq)
 // {
 //     int clock = getClk();
@@ -198,31 +209,51 @@ static void processHPF(void *pcbEntry)
 //     }
 // }
 
-static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initDS)
+PCB *createProcess(Process *newProcess)
 {
-    key_t key_id;
-    int rec_val, msgq_id;
-
-    key_id = ftok("keyfile", 65);               // create unique key
-    msgq_id = msgget(key_id, 0666 | IPC_CREAT); // create message queue and return id
-
-    if (msgq_id == -1)
+    PCB *processInstance = createPCBEntry(newProcess);
+    int pid = fork();
+    if (pid == 0)
     {
-        perror("Error in create");
-        exit(-1);
+        // child process
+        execv("./process.out", NULL);
     }
-    Process receivedProcess;
-    void *list = initDS();
-    while (true)
+    else
     {
-        // not sure of process size
-        rec_val = msgrcv(msgq_id, &receivedProcess, sizeof(Process), 0, IPC_NOWAIT);
-        if (rec_val != -1)
-        {
-            PCB *newPCBEntry = createPCBEntry(&receivedProcess);
-            addToDS(newPCBEntry); // it should be addToDS(list, newPCBEntry);
-        }
-        algorithm(list);
+        /**
+         * parent process:
+         * 1. Stops the forked process
+         * 2. assigns values in the process control block
+         */
+        kill(pid, SIGSTOP);
+        processInstance->mappedProcessID = pid;
+    }
+    return processInstance;
+}
+
+void stopProcess(PCB *process)
+{
+    kill(process->mappedProcessID, SIGSTOP);
+}
+
+void contiuneProcess(PCB *process)
+{
+    kill(process->mappedProcessID, SIGCONT);
+}
+
+void assignListToReference(void *list)
+{
+    switch (algorithmType)
+    {
+    case HPF:
+        pqHPF = (pqueue_t *)list;
+        break;
+    case SRTN:
+        pqSRTN = (pqueue_t *)list;
+        break;
+    case RR:
+        llRR = (LinkedList *)list;
+        break;
     }
 }
 
@@ -278,11 +309,66 @@ void initProcessTable()
     processTable = malloc(MAX_NUM_OF_PROCESS * sizeof(PCB *));
 }
 
+void removeCurrentProcessFromDs()
+{
+    PCB *process;
+    switch (algorithmType)
+    {
+    case HPF:
+        process = pqueue_pop(pqHPF);
+        break;
+    case SRTN:
+        process = pqueue_pop(pqSRTN);
+        break;
+    case RR:
+        RemoveNode(llRR, lastNode);
+        process = lastNode->data;
+        break;
+    }
+    free(process);
+}
+
+static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initDS)
+{
+    key_t key_id;
+    int rec_val, msgq_id;
+
+    key_id = ftok("keyfile", 65);               // create unique key
+    msgq_id = msgget(key_id, 0666 | IPC_CREAT); // create message queue and return id
+
+    if (msgq_id == -1)
+    {
+        perror("Error in create");
+        exit(-1);
+    }
+    Process receivedProcess;
+    void *list = initDS();
+    assignListToReference(list);
+    while (true)
+    {
+        // not sure of process size
+        rec_val = msgrcv(msgq_id, &receivedProcess, sizeof(Process), 0, IPC_NOWAIT);
+        if (rec_val != -1)
+        {
+            PCB *newPCBEntry = createPCBEntry(&receivedProcess);
+            addToDS(newPCBEntry); // it should be addToDS(list, newPCBEntry);
+        }
+        algorithm(list);
+    }
+}
+
+void processTerminationHandler(int signum)
+{
+    int stat_loc = 0;
+    int pid = wait(&stat_loc);
+    removeCurrentProcessFromDs();
+}
+
 int main(int argc, char *argv[])
 {
+    initClk();
     initProcessTable();
-
-    // initClk();
+    signal(SIGCHLD, processTerminationHandler);
 
     // handleProcesses(processHPF, addTest, createPQ);
     // // handleProcesses(processSRTN, addToSRTN, createPQ);
@@ -300,7 +386,18 @@ int main(int argc, char *argv[])
     // // check kol cycle
     // // check lw galy signal enha 5lst
 
-    // // upon termination release the clock resources.
-
-    // destroyClk(true);
+    switch (algorithmType)
+    {
+    case HPF:
+        handleProcesses(processHPF, addToHPF, createHPFPQ);
+        break;
+    case SRTN:
+        handleProcesses(processSRTN, addToSRTN, createSRTNPQ);
+        break;
+    case RR:
+        handleProcesses(processRR, addToRR, createLL);
+        break;
+    }
+    // upon termination release the clock resources.
+    destroyClk(true);
 }
