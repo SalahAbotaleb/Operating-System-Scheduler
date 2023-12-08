@@ -57,15 +57,14 @@ typedef u_int16_t Priority;
 typedef struct
 {
     State state;
-    ProcessID processID;
-    ProcessID mappedProcessID;
+    ProcessID processID;       // process ID recieved from process generator
+    ProcessID mappedProcessID; // actual process ID in the os
     Time arrivalTime;
     Time startTime;
     Time remainingTime;
     Time finishTime;
     Priority priority;
-    pid_t pid;
-    size_t pq_position;
+    size_t pqPosition;
 
 } PCB;
 
