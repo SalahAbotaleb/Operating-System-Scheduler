@@ -9,7 +9,7 @@
 #include <signal.h>
 
 typedef void (*algorithm)(void *);
-typedef void (*addItem)(PCB *);
+typedef void (*addItem)(void *, PCB *);
 typedef void *(*createDS)();
 
 static int lastclk = 0;
@@ -51,23 +51,28 @@ static void *createPQ()
     // pqueue_init();
 }
 
-static void addToRR(LinkedList *list, PCB *pEntry)
+static void addToRR(void *listT, PCB *pEntry)
 {
+    LinkedList *list = (LinkedList *)listT;
     AddNodeToBack(list, CreateNode(pEntry));
 }
 
-static void addToHPF(pqueue_t *pq, PCB *pEntry)
+static void addToHPF(void *pqT, PCB *pEntry)
 {
-    //    pqueue_insert(pq, pEntry);
+    pqueue_t *pq = (pqueue_t *)pqT;
+    pqueue_insert(pq, pEntry);
 }
 
-static void addToSRTN(pqueue_t *pq, PCB *pEntry)
+static void addToSRTN(void *pqT, PCB *pEntry)
 {
-    int success = pqueue_insert(pq, pEntry);
+    pqueue_t *pq = (pqueue_t *)pqT;
+    pqueue_insert(pq, pEntry);
 }
 
-static void processRR(LinkedList *list)
+static void processRR(void *listT)
 {
+    LinkedList *list = (LinkedList *)listT;
+
     int clock = getClk();
     if (clock != lastclk)
     {
@@ -110,15 +115,19 @@ static void processRR(LinkedList *list)
     }
 }
 //
-static void processHPF(pqueue_t *pq)
+static void processHPF(void *pqT)
 {
+    pqueue_t *pq = pqT;
     // 2 5 7 8
     // insertion
 }
 //
 
-static void processSRTN(pqueue_t *pq)
+static void processSRTN(void *pqT)
 {
+    pqueue_t *pq = pqT;
+    // should continue function here
+    // TODO: copy commented part and pase here
 }
 // static void processSRTN(pqueue_t *pq)
 // {
@@ -216,7 +225,8 @@ PCB *createProcess(Process *newProcess)
     if (pid == 0)
     {
         // child process
-        execv("./process.out", NULL);
+        char *args[] = {PROCESS_EXECUTABLE_NAME};
+        execv(PROCESS_EXECUTABLE_NAME, args);
     }
     else
     {
@@ -290,14 +300,14 @@ void pqTest()
     free(processTable);
 }
 
-pqueue_t *createHPFPQ()
+void *createHPFPQ()
 {
     pqueue_t *pq;
     pq = pqueue_init(MAX_NUM_OF_PROCESS, cmpPriority, getPriority, setPriority, get_pos, set_pos);
     return pq;
 }
 
-pqueue_t *createSRTNPQ()
+void *createSRTNPQ()
 {
     pqueue_t *pq;
     pq = pqueue_init(MAX_NUM_OF_PROCESS, cmpPriority, getRemainingTimeAsPriority, setRemainingTimeAsPriority, get_pos, set_pos);
@@ -351,7 +361,7 @@ static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initD
         if (rec_val != -1)
         {
             PCB *newPCBEntry = createPCBEntry(&receivedProcess);
-            addToDS(newPCBEntry); // it should be addToDS(list, newPCBEntry);
+            addToDS(list, newPCBEntry);
         }
         algorithm(list);
     }
@@ -370,22 +380,6 @@ int main(int argc, char *argv[])
     initProcessTable();
     signal(SIGCHLD, processTerminationHandler);
 
-    // handleProcesses(processHPF, addTest, createPQ);
-    // // handleProcesses(processSRTN, addToSRTN, createPQ);
-
-    // // TODO implement the scheduler :)
-    // // while (1) {
-    // // 1. read queue if there are any new processes
-    // // case (algorithm)
-    // // HFP:
-    // // addToHPF(pcbEntry)
-    // // SRTN:
-    // // addToSRTN(pcbEntry)
-    // // RR:
-    // // addToRR(pcbEntry)
-    // // check kol cycle
-    // // check lw galy signal enha 5lst
-
     switch (algorithmType)
     {
     case HPF:
@@ -398,6 +392,7 @@ int main(int argc, char *argv[])
         handleProcesses(processRR, addToRR, createLL);
         break;
     }
+
     // upon termination release the clock resources.
     destroyClk(true);
 }
