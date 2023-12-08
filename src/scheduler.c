@@ -1,24 +1,7 @@
 #include "headers.h"
 #include "Data_Structures/linked_list.h"
 #include "Data_Structures/pqueue.h"
-
-typedef u_int16_t ProcessID;
-typedef u_int16_t Time;
-typedef u_int16_t Priority;
-
-typedef struct
-{
-    State state;
-    ProcessID processID;
-    ProcessID mappedProcessID;
-    Time arrivalTime;
-    Time startTime;
-    Time remainingTime;
-    Time finishTime;
-    Priority priority;
-    pid_t pid;
-
-} PCB;
+#include "pqCustomizedCB.c"
 
 typedef void (*algorithm)(void *);
 typedef void (*addItem)(PCB *);
@@ -72,9 +55,10 @@ static void addToSRTN(pqueue_t *pq, PCB *pEntry)
 
 int lastclk = 0;
 Node *lastNode = NULL; // it is used in processRR & processSRTN
-// GHashTable* forkedSet = g_hash_table_new(g_str_hash, g_str_equal);
+PCB **processTable = NULL;
 
-static void processRR(LinkedList *list)
+static void
+processRR(LinkedList *list)
 {
     int clock = getClk();
     if (clock != lastclk)
@@ -236,33 +220,87 @@ static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initD
         if (rec_val != -1)
         {
             PCB *newPCBEntry = createPCBEntry(&receivedProcess);
-            addToDS(newPCBEntry);                                                 // it should be addToDS(list, newPCBEntry);
+            addToDS(newPCBEntry); // it should be addToDS(list, newPCBEntry);
         }
         algorithm(list);
     }
 }
 
+void pqTest()
+{
+    PCB *processTable;
+    pqueue_t *pq;
+    processTable = malloc(MAX_NUM_OF_PROCESS * sizeof(PCB));
+    processTable[0].priority = 0;
+    processTable[0].processID = 0;
+    processTable[1].priority = 1;
+    processTable[1].processID = 1;
+    processTable[2].priority = 2;
+    processTable[2].processID = 2;
+    processTable[3].priority = 3;
+    processTable[3].processID = 3;
+    processTable[4].priority = 4;
+    processTable[4].processID = 4;
+    pq = pqueue_init(MAX_NUM_OF_PROCESS, cmpPriority, getPriority, setPriority, get_pos, set_pos);
+    pqueue_insert(pq, &processTable[0]);
+    pqueue_insert(pq, &processTable[1]);
+    pqueue_insert(pq, &processTable[2]);
+    pqueue_insert(pq, &processTable[3]);
+    pqueue_insert(pq, &processTable[4]);
+    pqueue_change_priority(pq, 5, &processTable[0]);
+    pqueue_change_priority(pq, 6, &processTable[1]);
+    pqueue_change_priority(pq, 0, &processTable[2]);
+    PCB *pqFront;
+    while (pqFront = pqueue_pop(pq))
+    {
+        printf("Process ID: %d, Priority: %d\n", pqFront->processID, pqFront->priority);
+    }
+    pqueue_free(pq);
+    free(processTable);
+}
+
+pqueue_t *createHPFPQ()
+{
+    pqueue_t *pq;
+    pq = pqueue_init(MAX_NUM_OF_PROCESS, cmpPriority, getPriority, setPriority, get_pos, set_pos);
+    return pq;
+}
+
+pqueue_t *createSRTNPQ()
+{
+    pqueue_t *pq;
+    pq = pqueue_init(MAX_NUM_OF_PROCESS, cmpPriority, getRemainingTimeAsPriority, setRemainingTimeAsPriority, get_pos, set_pos);
+    return pq;
+}
+
+void initProcessTable()
+{
+    processTable = malloc(MAX_NUM_OF_PROCESS * sizeof(PCB *));
+}
+
 int main(int argc, char *argv[])
 {
-    initClk();
+    initProcessTable();
 
-    handleProcesses(processHPF, addTest, createPQ);
-    //handleProcesses(processSRTN, addToSRTN, createPQ);
+    // initClk();
 
-    // TODO implement the scheduler :)
-    // while (1) {
-    // 1. read queue if there are any new processes
-    // case (algorithm)
-    // HFP:
-    // addToHPF(pcbEntry)
-    // SRTN:
-    // addToSRTN(pcbEntry)
-    // RR:
-    // addToRR(pcbEntry)
-    // check kol cycle
-    // check lw galy signal enha 5lst
+    // handleProcesses(processHPF, addTest, createPQ);
+    // // handleProcesses(processSRTN, addToSRTN, createPQ);
 
-    // upon termination release the clock resources.
+    // // TODO implement the scheduler :)
+    // // while (1) {
+    // // 1. read queue if there are any new processes
+    // // case (algorithm)
+    // // HFP:
+    // // addToHPF(pcbEntry)
+    // // SRTN:
+    // // addToSRTN(pcbEntry)
+    // // RR:
+    // // addToRR(pcbEntry)
+    // // check kol cycle
+    // // check lw galy signal enha 5lst
 
-    destroyClk(true);
+    // // upon termination release the clock resources.
+
+    // destroyClk(true);
 }

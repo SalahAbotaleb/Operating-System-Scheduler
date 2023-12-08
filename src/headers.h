@@ -1,4 +1,7 @@
-#include <stdio.h>      //if you don't use scanf/printf change this include
+#ifndef HEADERS_H
+#define HEADERS_H
+
+#include <stdio.h> //if you don't use scanf/printf change this include
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
@@ -11,66 +14,87 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
-//#include <glib.h>
 
 typedef short bool;
 #define true 1
 #define false 0
 
 #define SHKEY 300
+#define MAX_NUM_OF_PROCESS 5
 
-typedef struct buffer_item {
+typedef struct buffer_item
+{
     int mtype;
     char *mtext;
 } message;
 
-typedef enum {
+typedef enum
+{
     RUN,
     BLOCKED,
     READY
 } State;
 
-typedef enum SchedulingAlgorithms {
-    HPF, SRTN, RR
+typedef enum SchedulingAlgorithms
+{
+    HPF,
+    SRTN,
+    RR
 } SchedulingAlgorithm;
 
-typedef struct Process {
+typedef struct Process
+{
     int id;
     int arrivalTime;
     int runTime;
     int priority;
 } Process;
 
+typedef u_int16_t ProcessID;
+typedef u_int16_t Time;
+typedef u_int16_t Priority;
+
+typedef struct
+{
+    State state;
+    ProcessID processID;
+    ProcessID mappedProcessID;
+    Time arrivalTime;
+    Time startTime;
+    Time remainingTime;
+    Time finishTime;
+    Priority priority;
+    pid_t pid;
+    size_t pq_position;
+
+} PCB;
+
 ///==============================
-//don't mess with this variable//
-int * shmaddr;                 //
+// don't mess with this variable//
+int *shmaddr; //
 //===============================
-
-
 
 int getClk()
 {
     return *shmaddr;
 }
 
-
 /*
  * All process call this function at the beginning to establish communication between them and the clock module.
  * Again, remember that the clock is only emulation!
-*/
+ */
 void initClk()
 {
     int shmid = shmget(SHKEY, 4, 0444);
     while ((int)shmid == -1)
     {
-        //Make sure that the clock exists
+        // Make sure that the clock exists
         printf("Wait! The clock not initialized yet!\n");
         sleep(1);
         shmid = shmget(SHKEY, 4, 0444);
     }
-    shmaddr = (int *) shmat(shmid, (void *)0, 0);
+    shmaddr = (int *)shmat(shmid, (void *)0, 0);
 }
-
 
 /*
  * All process call this function at the end to release the communication
@@ -78,7 +102,7 @@ void initClk()
  * Again, Remember that the clock is only emulation!
  * Input: terminateAll: a flag to indicate whether that this is the end of simulation.
  *                      It terminates the whole system and releases resources.
-*/
+ */
 
 void destroyClk(bool terminateAll)
 {
@@ -88,3 +112,5 @@ void destroyClk(bool terminateAll)
         killpg(getpgrp(), SIGINT);
     }
 }
+
+#endif
