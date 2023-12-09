@@ -20,7 +20,7 @@ int intializeMsgQueue(char *file, int num)
 void intializeProcessRemainingTime()
 {
     int queueId = intializeMsgQueue(KEY_FILE, MSG_QUEUE_SHCEDULAR_PROCESS_KEY);
-
+    int received = 0;
     messageBuff msg;
     int rec_val = msgrcv(queueId, &msg, sizeof(msg.mIntegerData), getpid(), !IPC_NOWAIT);
 
@@ -29,6 +29,7 @@ void intializeProcessRemainingTime()
         perror("Error in receive");
     }
     remainingtime = msg.mIntegerData;
+    printf("Remaining time = %d\n", remainingtime);
 }
 
 void initProcess()
@@ -40,6 +41,7 @@ void initProcess()
 int main(int agrc, char *argv[])
 {
     initProcess();
+    printf("Hello from process\n");
     // TODO it needs to get the remaining time from somewhere
     // remainingtime = ??;
     int lstTime = getClk();
