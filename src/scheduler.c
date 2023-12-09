@@ -238,7 +238,6 @@ int intializeMsgQueue(char *file, int num)
 void intializeProcessRemainingTime(int remainingTime, int processId)
 {
     int queueId = intializeMsgQueue(KEY_FILE, MSG_QUEUE_SHCEDULAR_PROCESS_KEY);
-
     messageBuff msg;
     msg.mIntegerData = remainingTime;
     msg.mtype = processId;
@@ -256,8 +255,10 @@ PCB *createProcess(Process *newProcess)
     if (pid == 0)
     {
         // child process
-        char *args[] = {PROCESS_EXECUTABLE_NAME};
-        execv(PROCESS_EXECUTABLE_NAME, args);
+        char *args[] = {"./process.out", NULL};
+        execvp(args[0], args);
+        perror("execvp");
+        exit(EXIT_FAILURE);
     }
     else
     {
@@ -388,14 +389,15 @@ static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initD
     assignListToReference(list);
     while (true)
     {
-        // not sure of process size
-        rec_val = msgrcv(msgq_id, &receivedProcess, sizeof(Process), 0, IPC_NOWAIT);
+        rec_val = msgrcv(msgq_id, &receivedProcess, sizeof(Process) - sizeof(long), 0, IPC_NOWAIT);
         if (rec_val != -1)
         {
-            PCB *newPCBEntry = createPCBEntry(&receivedProcess);
-            addToDS(list, newPCBEntry);
+            printf("Received %d\n", receivedProcess.id);
+            PCB *newPCBEntry = createProcess(&receivedProcess);
+            printf("Process created with pid %d\n", newPCBEntry->mappedProcessID);
+            //  addToDS(list, newPCBEntry);
         }
-        algorithm(list);
+        // algorithm(list);
     }
 }
 
@@ -403,7 +405,8 @@ void childProcessTerminationHandler(int signum)
 {
     int stat_loc = 0;
     int pid = wait(&stat_loc);
-    removeCurrentProcessFromDs();
+    printf("Yes sub-process is removed\n");
+    // removeCurrentProcessFromDs();
 }
 
 void closeResources()
@@ -423,9 +426,24 @@ void initClkResource()
     initClk();
 }
 
+void initSigAction()
+{
+    struct sigaction sa;
+
+    sa.sa_handler = childProcessTerminationHandler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART | SA_SIGINFO | SA_NOCLDSTOP;
+
+    if (sigaction(SIGCHLD, &sa, NULL) == -1)
+    {
+        perror("Error in sigaction");
+        exit(-1);
+    }
+}
+
 void initSignalsHandlers()
 {
-    signal(SIGCHLD, childProcessTerminationHandler);
+    initSigAction();
     signal(SIGINT, processTerminationHandler);
 }
 
