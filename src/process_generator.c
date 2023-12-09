@@ -45,7 +45,6 @@ int main(int argc, char *argv[])
     int currProcess = 0;
     key_t key_id = ftok(KEY_FILE, MSG_QUEUE_GENERATOR_SCHEDULAR_KEY); // create unique key
     int msgq_id = msgget(key_id, 0666 | IPC_CREAT);                   // create message queue and return id
-    printf("Key %d\n", msgq_id);
     while (currProcess < MAX_NUM_OF_PROCESS)
     {
         int currTime = getClk();

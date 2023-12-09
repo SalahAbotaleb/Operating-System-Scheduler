@@ -21,6 +21,18 @@ static pqueue_t *pqSRTN = NULL; // priority queue for Shortet Remaining Time Nex
 static LinkedList *llRR = NULL; // linked list for Round Robin Algorithm
 static int resources[MAX_NUM_OF_RESOURCES] = {-1};
 static int currentResourcesCount = 0;
+static int lstProcessKilled = -2;
+static PCB *lstPCB = NULL;
+
+void stopProcess(PCB *process)
+{
+    kill(process->mappedProcessID, SIGSTOP);
+}
+
+void contiuneProcess(PCB *process)
+{
+    kill(process->mappedProcessID, SIGCONT);
+}
 
 static void addTest(PCB *process)
 {
@@ -46,11 +58,6 @@ static void deletePCBEnrty(PCB *pcbEntry)
 static void *createLL()
 {
     return CreateLinkedList();
-}
-
-static void *createPQ()
-{
-    // pqueue_init();
 }
 
 static void addToRR(void *listT, PCB *pEntry)
@@ -116,14 +123,32 @@ static void processRR(void *listT)
         }
     }
 }
-//
+
 static void processHPF(void *pqT)
 {
     pqueue_t *pq = pqT;
-    // 2 5 7 8
-    // insertion
+    if (pq->size <= 1)
+        return;
+
+    static ProcessID currProcess = -1;
+    PCB *highestPriorityProcess = pqueue_peek(pq);
+    if (highestPriorityProcess == NULL)
+    {
+        return;
+    }
+    if (currProcess == -1)
+    {
+        currProcess = highestPriorityProcess->mappedProcessID;
+        lstPCB = highestPriorityProcess;
+        contiuneProcess(lstPCB);
+    }
+    else if (lstProcessKilled == currProcess)
+    {
+        currProcess = highestPriorityProcess->mappedProcessID;
+        lstPCB = highestPriorityProcess;
+        contiuneProcess(lstPCB);
+    }
 }
-//
 
 static void processSRTN(void *pqT)
 {
@@ -131,6 +156,7 @@ static void processSRTN(void *pqT)
     // should continue function here
     // TODO: copy commented part and pase here
 }
+
 // static void processSRTN(pqueue_t *pq)
 // {
 //     int clock = getClk();
@@ -282,16 +308,6 @@ void closeIPCResources()
     }
 }
 
-void stopProcess(PCB *process)
-{
-    kill(process->mappedProcessID, SIGSTOP);
-}
-
-void contiuneProcess(PCB *process)
-{
-    kill(process->mappedProcessID, SIGCONT);
-}
-
 void assignListToReference(void *list)
 {
     switch (algorithmType)
@@ -366,7 +382,13 @@ void removeCurrentProcessFromDs()
     switch (algorithmType)
     {
     case HPF:
-        process = pqueue_pop(pqHPF);
+        printf("LST pcb %d\n", lstPCB->mappedProcessID);
+        int res = pqueue_remove(pqHPF, (void *)lstPCB);
+        if (res != 0)
+        {
+            printf("Removing from PQ fails");
+        }
+        process = lstPCB;
         break;
     case SRTN:
         process = pqueue_pop(pqSRTN);
@@ -377,6 +399,7 @@ void removeCurrentProcessFromDs()
         break;
     }
     free(process);
+    printf("Done Free\n");
 }
 
 static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initDS)
@@ -395,9 +418,9 @@ static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initD
             printf("Received %d\n", receivedProcess.id);
             PCB *newPCBEntry = createProcess(&receivedProcess);
             printf("Process created with pid %d\n", newPCBEntry->mappedProcessID);
-            //  addToDS(list, newPCBEntry);
+            addToDS(list, newPCBEntry);
         }
-        // algorithm(list);
+        algorithm(list);
     }
 }
 
@@ -405,8 +428,9 @@ void childProcessTerminationHandler(int signum)
 {
     int stat_loc = 0;
     int pid = wait(&stat_loc);
-    printf("Yes sub-process is removed\n");
-    // removeCurrentProcessFromDs();
+    printf("Yes sub-process %d is removed\n", pid);
+    removeCurrentProcessFromDs();
+    lstProcessKilled = pid;
 }
 
 void closeResources()
@@ -456,8 +480,10 @@ void initSchedular()
 
 int main(int argc, char *argv[])
 {
-
     initSchedular();
+    algorithmType = HPF;
+
+    printf("Schedular Id %d\n", getpid());
     switch (algorithmType)
     {
     case HPF:
