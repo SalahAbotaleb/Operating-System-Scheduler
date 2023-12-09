@@ -19,6 +19,8 @@ static SchedulingAlgorithm algorithmType;
 static pqueue_t *pqHPF = NULL;  // priority queue for Highest Priority First Algorithm
 static pqueue_t *pqSRTN = NULL; // priority queue for Shortet Remaining Time Next Algorithm
 static LinkedList *llRR = NULL; // linked list for Round Robin Algorithm
+static int resources[MAX_NUM_OF_RESOURCES] = {-1};
+static int currentResourcesCount = 0;
 
 static void addTest(PCB *process)
 {
@@ -218,6 +220,35 @@ static void processSRTN(void *pqT)
 //     }
 // }
 
+int intializeMsgQueue(char *file, int num)
+{
+    key_t key_id;
+    int rec_val, msgq_id;
+    key_id = ftok(file, num);
+    msgq_id = msgget(key_id, IPC_CREAT | 0666);
+    if (msgq_id == -1)
+    {
+        perror("Error in creating message queue");
+        exit(-1);
+    }
+    resources[currentResourcesCount++] = msgq_id;
+    return msgq_id;
+}
+
+void intializeProcessRemainingTime(int remainingTime, int processId)
+{
+    int queueId = intializeMsgQueue(KEY_FILE, MSG_QUEUE_SHCEDULAR_PROCESS_KEY);
+
+    messageBuff msg;
+    msg.mIntegerData = remainingTime;
+    msg.mtype = processId;
+    int send_val = msgsnd(queueId, &msg, sizeof(msg.mIntegerData), !IPC_NOWAIT);
+    if (send_val == -1)
+    {
+        perror("Errror in send");
+    }
+}
+
 PCB *createProcess(Process *newProcess)
 {
     PCB *processInstance = createPCBEntry(newProcess);
@@ -237,8 +268,17 @@ PCB *createProcess(Process *newProcess)
          */
         kill(pid, SIGSTOP);
         processInstance->mappedProcessID = pid;
+        intializeProcessRemainingTime(processInstance->remainingTime, pid);
     }
     return processInstance;
+}
+
+void closeIPCResources()
+{
+    for (int i = 0; i < currentResourcesCount; i++)
+    {
+        msgctl(resources[i], IPC_RMID, (struct msqid_ds *)0);
+    }
 }
 
 void stopProcess(PCB *process)
@@ -340,17 +380,9 @@ void removeCurrentProcessFromDs()
 
 static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initDS)
 {
-    key_t key_id;
     int rec_val, msgq_id;
 
-    key_id = ftok("keyfile", 65);               // create unique key
-    msgq_id = msgget(key_id, 0666 | IPC_CREAT); // create message queue and return id
-
-    if (msgq_id == -1)
-    {
-        perror("Error in create");
-        exit(-1);
-    }
+    msgq_id = intializeMsgQueue(KEY_FILE, MSG_QUEUE_GENERATOR_SCHEDULAR_KEY);
     Process receivedProcess;
     void *list = initDS();
     assignListToReference(list);
@@ -367,19 +399,47 @@ static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initD
     }
 }
 
-void processTerminationHandler(int signum)
+void childProcessTerminationHandler(int signum)
 {
     int stat_loc = 0;
     int pid = wait(&stat_loc);
     removeCurrentProcessFromDs();
 }
 
-int main(int argc, char *argv[])
+void closeResources()
+{
+    closeIPCResources();
+    destroyClk(true);
+}
+
+void processTerminationHandler(int signum)
+{
+    closeResources();
+    killpg(getpgrp(), SIGKILL);
+}
+
+void initClkResource()
 {
     initClk();
-    initProcessTable();
-    signal(SIGCHLD, processTerminationHandler);
+}
 
+void initSignalsHandlers()
+{
+    signal(SIGCHLD, childProcessTerminationHandler);
+    signal(SIGINT, processTerminationHandler);
+}
+
+void initSchedular()
+{
+    initClkResource();
+    initProcessTable();
+    initSignalsHandlers();
+}
+
+int main(int argc, char *argv[])
+{
+
+    initSchedular();
     switch (algorithmType)
     {
     case HPF:
@@ -393,6 +453,6 @@ int main(int argc, char *argv[])
         break;
     }
 
-    // upon termination release the clock resources.
-    destroyClk(true);
+    // any openened resources should be closed here
+    closeResources();
 }

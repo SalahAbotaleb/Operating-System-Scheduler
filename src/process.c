@@ -3,18 +3,58 @@
 /* Modify this file as needed*/
 int remainingtime;
 
-int main(int agrc, char * argv[])
+int intializeMsgQueue(char *file, int num)
+{
+    key_t key_id;
+    int rec_val, msgq_id;
+    key_id = ftok(file, num);
+    msgq_id = msgget(key_id, IPC_CREAT | 0666);
+    if (msgq_id == -1)
+    {
+        perror("Error in creating message queue");
+        exit(-1);
+    }
+    return msgq_id;
+}
+
+void intializeProcessRemainingTime()
+{
+    int queueId = intializeMsgQueue(KEY_FILE, MSG_QUEUE_SHCEDULAR_PROCESS_KEY);
+
+    messageBuff msg;
+    int rec_val = msgrcv(queueId, &msg, sizeof(msg.mIntegerData), getpid(), !IPC_NOWAIT);
+
+    if (rec_val == -1)
+    {
+        perror("Error in receive");
+    }
+    remainingtime = msg.mIntegerData;
+}
+
+void initProcess()
 {
     initClk();
-    
-    //TODO it needs to get the remaining time from somewhere
-    //remainingtime = ??;
+    intializeProcessRemainingTime();
+}
+
+int main(int agrc, char *argv[])
+{
+    initProcess();
+    // TODO it needs to get the remaining time from somewhere
+    // remainingtime = ??;
+    int lstTime = getClk();
     while (remainingtime > 0)
     {
         // remainingtime = ??;
+        int currClk = getClk();
+        if (currClk > lstTime)
+        {
+            remainingtime--;
+            lstTime = currClk;
+        }
     }
-    
+
     destroyClk(false);
-    
+
     return 0;
 }

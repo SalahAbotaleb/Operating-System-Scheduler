@@ -20,14 +20,17 @@ typedef short bool;
 #define false 0
 
 #define SHKEY 300
+#define MSG_QUEUE_SHCEDULAR_PROCESS_KEY 107
+#define MSG_QUEUE_GENERATOR_SCHEDULAR_KEY 503
+#define KEY_FILE "keyfile"
 #define MAX_NUM_OF_PROCESS 5
 #define PROCESS_EXECUTABLE_NAME "process.out"
-
+#define MAX_NUM_OF_RESOURCES 5
 typedef struct buffer_item
 {
     int mtype;
-    char *mtext;
-} message;
+    int mIntegerData;
+} messageBuff;
 
 typedef enum
 {
