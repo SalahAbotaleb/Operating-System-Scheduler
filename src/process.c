@@ -29,7 +29,7 @@ void intializeProcessRemainingTime()
         perror("Error in receive");
     }
     remainingtime = msg.mIntegerData;
-    printf("Remaining time = %d\n", remainingtime);
+    printf("Process %d Remaining time = %d\n", getpid(), remainingtime);
 }
 
 void initProcess()
@@ -53,6 +53,7 @@ int main(int agrc, char *argv[])
         {
             remainingtime--;
             lstTime = currClk;
+            printf("Process %d Remaining time = %d\n", getpid(), remainingtime);
         }
     }
 
