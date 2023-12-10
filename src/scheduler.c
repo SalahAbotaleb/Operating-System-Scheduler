@@ -23,14 +23,111 @@ static int resources[MAX_NUM_OF_RESOURCES] = {-1};
 static int currentResourcesCount = 0;
 static int lstProcessKilled = -2;
 static PCB *lstPCB = NULL;
+static State lstState;
+
+void writeOutputLogFile()
+{
+    FILE *file = fopen("scheduler.log", "w"); 
+    if (file == NULL)
+    {
+        perror("Error opening log file for writing");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(file,"#At time x process y state arr w total z remain y wait k\n");
+
+    fclose(file);
+}
+
+void writeOutputLogFileStarted(PCB *process)
+{
+    FILE *file = fopen("scheduler.log", "a");
+    if (file == NULL)
+    {
+        perror("Error opening log file for writing");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(file, "At time %d process %d Started arr %d total %d remain %d wait %d\n",
+            getClk(),
+            process->processID,
+            process->arrivalTime,
+            process->runTime,
+            process->remainingTime,
+            process->wait);
+
+    fclose(file);
+}
+
+void writeOutputLogFileResumed(PCB *process)
+{
+    if(algorithmType != HPF)
+    {
+        FILE *file = fopen("scheduler.log", "a");
+        if (file == NULL)
+        {
+            perror("Error opening log file for writing");
+            exit(EXIT_FAILURE);
+        }
+        fprintf(file, "At time %d process %d Resumed arr %d total %d remain %d wait %d\n",
+                getClk(),
+                process->processID,
+                process->arrivalTime,
+                process->runTime,
+                process->remainingTime,
+                process->wait);
+
+        fclose(file);
+    }
+}
+
+void writeOutputLogFileStopped(PCB *process)
+{
+    FILE *file = fopen("scheduler.log", "a");
+    if (file == NULL)
+    {
+        perror("Error opening log file for writing");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(file, "At time %d process %d Stopped arr %d total %d remain %d wait %d\n",
+            getClk(),
+            process->processID,
+            process->arrivalTime,
+            process->runTime,
+            process->remainingTime,
+            process->wait);
+
+    fclose(file);
+}
+
+void writeOutputLogFileFinished(PCB *process)
+{
+    FILE *file = fopen("scheduler.log", "a");
+    if (file == NULL)
+    {
+        perror("Error opening log file for writing");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(file, "At time %d process %d Finished arr %d total %d remain %d wait %d TA %d WTA %.2f\n",
+            getClk(),
+            process->processID,
+            process->arrivalTime,
+            process->runTime,
+            process->remainingTime,                                         // the remaining time is not correct as it is not updated from processor (zahar)
+            process->wait,
+            process->TA,
+            (float)(process->TA) / process->runTime);
+
+    fclose(file);
+}
 
 void stopProcess(PCB *process)
 {
+    writeOutputLogFileStopped(process);
     kill(process->mappedProcessID, SIGSTOP);
 }
 
 void contiuneProcess(PCB *process)
 {
+    writeOutputLogFileResumed(process);
     kill(process->mappedProcessID, SIGCONT);
 }
 
@@ -47,7 +144,27 @@ static PCB *createPCBEntry(Process *newProcess)
     newPCBEntry->remainingTime = newProcess->runTime;
     newPCBEntry->priority = newProcess->priority;
     newPCBEntry->processID = newProcess->id;
+    newPCBEntry->runTime = newProcess->runTime;                         // needed for output files (zahar)
+    newPCBEntry->startTime = -1;                                        // to know if it was excuted before
     return newPCBEntry;
+}
+
+static void setPCBStartTime(PCB *pcbEntry)
+{
+    printf("kfaya\n");
+    if(pcbEntry->startTime == 65535)                                    // it is working as a flag but i prefer to use a boolean (zahar)
+    {
+        pcbEntry->startTime = getClk();
+        printf("Start time %d\n", pcbEntry->startTime);
+        pcbEntry->wait = pcbEntry->startTime - pcbEntry->arrivalTime;
+    }
+    
+}
+
+static void setPCBFinishedTime(PCB *pcbEntry)
+{
+    pcbEntry->finishTime = getClk();
+    pcbEntry->TA = pcbEntry->finishTime - pcbEntry->arrivalTime;
 }
 
 static void deletePCBEnrty(PCB *pcbEntry)
@@ -140,12 +257,16 @@ static void processHPF(void *pqT)
     {
         currProcess = highestPriorityProcess->mappedProcessID;
         lstPCB = highestPriorityProcess;
+        setPCBStartTime(lstPCB);
+        writeOutputLogFileStarted(lstPCB);
         contiuneProcess(lstPCB);
     }
     else if (lstProcessKilled == currProcess)
     {
         currProcess = highestPriorityProcess->mappedProcessID;
         lstPCB = highestPriorityProcess;
+        setPCBStartTime(lstPCB);
+        writeOutputLogFileStarted(lstPCB);
         contiuneProcess(lstPCB);
     }
 }
@@ -398,6 +519,8 @@ void removeCurrentProcessFromDs()
         process = lastNode->data;
         break;
     }
+    setPCBFinishedTime(process);
+    writeOutputLogFileFinished(process);
     free(process);
     printf("Done Free\n");
 }
@@ -410,6 +533,7 @@ static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initD
     Process receivedProcess;
     void *list = initDS();
     assignListToReference(list);
+    writeOutputLogFile();
     while (true)
     {
         rec_val = msgrcv(msgq_id, &receivedProcess, sizeof(Process) - sizeof(long), 0, IPC_NOWAIT);
