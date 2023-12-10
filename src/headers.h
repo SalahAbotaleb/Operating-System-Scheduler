@@ -34,9 +34,13 @@ typedef struct buffer_item
 
 typedef enum
 {
-    RUN,
-    BLOCKED,
-    READY
+    // RUN,
+    // BLOCKED,
+    // READY
+    STARTED,
+    RESUMED,
+    STOPPED,
+    FINISHED
 } State;
 
 typedef enum SchedulingAlgorithms
@@ -64,12 +68,15 @@ typedef struct
     State state;
     ProcessID processID;       // process ID recieved from process generator
     ProcessID mappedProcessID; // actual process ID in the os
+    Time runTime;              // needed for output files (zahar)
     Time arrivalTime;
     Time startTime;
     Time remainingTime;
     Time finishTime;
     Priority priority;
     size_t pqPosition;
+    Time wait;                 //(zahar)
+    Time TA;                   //(zahar)
 
 } PCB;
 
