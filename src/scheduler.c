@@ -24,6 +24,37 @@ static int currentResourcesCount = 0;
 static int lstProcessKilled = -2;
 static PCB *lstPCB = NULL;
 static State lstState;
+static int noProcessFinished = 0;
+static int totalRunTime = 0;
+static float totalWTA = 0;
+static int totalWaitingTime = 0;
+static float cpuUtilization = 0;
+static float avgWTA = 0;
+static float avgWaiting = 0;
+static float stdWTA = 0;
+
+void writeOutputPerfFile()
+{
+    FILE *file = fopen("scheduler.perf", "w");
+    if (file == NULL)
+    {
+        perror("Error opening log file for writing");
+        exit(EXIT_FAILURE);
+    }
+    cpuUtilization = ((float)totalRunTime / getClk())*100;
+    avgWTA = totalWTA / noProcessFinished;
+    avgWaiting = totalWaitingTime / noProcessFinished;
+    // for (int i = 0; i < 3; i++)
+    // {
+    //     stdWTA += pow((processTable[i]->TA - avgWTA), 2);
+    // }
+    fprintf(file, "CPU utilization = %.2f%%\n", cpuUtilization);
+    fprintf(file, "Avg WTA = %.2f\n", avgWTA);
+    fprintf(file, "Avg Waiting = %.2f\n", avgWaiting);
+    fprintf(file, "Std WTA = %.2f\n", stdWTA);
+
+    fclose(file);
+}
 
 void writeOutputLogFile()
 {
@@ -161,6 +192,7 @@ static void setPCBStartTime(PCB *pcbEntry)
         pcbEntry->startTime = getClk();
         printf("Start time %d\n", pcbEntry->startTime);
         pcbEntry->wait = pcbEntry->startTime - pcbEntry->arrivalTime;
+        totalWaitingTime += pcbEntry->wait;
     }
     
 }
@@ -169,6 +201,7 @@ static void setPCBFinishedTime(PCB *pcbEntry)
 {
     pcbEntry->finishTime = getClk();
     pcbEntry->TA = pcbEntry->finishTime - pcbEntry->arrivalTime;
+    totalWTA = totalWTA + ((float)pcbEntry->TA / pcbEntry->runTime);
 }
 
 static void deletePCBEnrty(PCB *pcbEntry)
@@ -303,8 +336,6 @@ static void processSRTN(void *pqT)
         lstPCB = highestPriorityProcess;
         setPCBStartTime(lstPCB);
         writeOutputLogFileStarted(lstPCB);
-        printf("SRTN start time %d\n", lstPCB->startTime);
-
         contiuneProcess(lstPCB);
     }
     else if (lstPCB != highestPriorityProcess)
@@ -370,6 +401,7 @@ PCB *createProcess(Process *newProcess)
          */
         kill(pid, SIGSTOP);
         processInstance->mappedProcessID = pid;
+        totalRunTime += processInstance->runTime;
         intializeProcessRemainingTime(processInstance->remainingTime, pid);
     }
     return processInstance;
@@ -476,6 +508,7 @@ void removeCurrentProcessFromDs()
     setPCBFinishedTime(process);
     writeOutputLogFileFinished(process);
     free(process);
+    noProcessFinished++;
     printf("Done Free\n");
 }
 
@@ -499,6 +532,11 @@ static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initD
             addToDS(list, newPCBEntry);
         }
         algorithm(list);
+        if (noProcessFinished == 3)                         // 3 should be replaced with acrual # of processes from process_generator (zahar)
+        {
+            writeOutputPerfFile();
+            break;
+        }
     }
 }
 
