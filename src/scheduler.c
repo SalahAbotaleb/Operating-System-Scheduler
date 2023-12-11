@@ -40,21 +40,24 @@ void writeOutputLogFile()
 
 void writeOutputLogFileStarted(PCB *process)
 {
-    FILE *file = fopen("scheduler.log", "a");
-    if (file == NULL)
+    if(process->startTime == getClk())
     {
-        perror("Error opening log file for writing");
-        exit(EXIT_FAILURE);
-    }
-    fprintf(file, "At time %d process %d Started arr %d total %d remain %d wait %d\n",
-            getClk(),
-            process->processID,
-            process->arrivalTime,
-            process->runTime,
-            process->remainingTime,
-            process->wait);
+        FILE *file = fopen("scheduler.log", "a");
+        if (file == NULL)
+        {
+            perror("Error opening log file for writing");
+            exit(EXIT_FAILURE);
+        }
+        fprintf(file, "At time %d process %d Started arr %d total %d remain %d wait %d\n",
+                getClk(),
+                process->processID,
+                process->arrivalTime,
+                process->runTime,
+                process->remainingTime,
+                process->wait);
 
-    fclose(file);
+        fclose(file);
+    }
 }
 
 void writeOutputLogFileResumed(PCB *process)
@@ -127,7 +130,8 @@ void stopProcess(PCB *process)
 
 void contiuneProcess(PCB *process)
 {
-    writeOutputLogFileResumed(process);
+    if (process->startTime != getClk())
+        writeOutputLogFileResumed(process);
     kill(process->mappedProcessID, SIGCONT);
 }
 
@@ -276,96 +280,46 @@ static void processSRTN(void *pqT)
     pqueue_t *pq = pqT;
     // should continue function here
     // TODO: copy commented part and pase here
+    if (pq->size <= 1)
+        return;
+
+    static ProcessID currProcess = -1;
+    PCB *highestPriorityProcess = pqueue_peek(pq);
+    if (highestPriorityProcess == NULL)
+    {
+        return;
+    }
+    if (currProcess == -1)
+    {
+        currProcess = highestPriorityProcess->mappedProcessID;
+        lstPCB = highestPriorityProcess;
+        setPCBStartTime(lstPCB);
+        writeOutputLogFileStarted(lstPCB);
+        contiuneProcess(lstPCB);
+    }
+    else if (lstProcessKilled == currProcess)                                   
+    {
+        currProcess = highestPriorityProcess->mappedProcessID;
+        lstPCB = highestPriorityProcess;
+        setPCBStartTime(lstPCB);
+        writeOutputLogFileStarted(lstPCB);
+        printf("SRTN start time %d\n", lstPCB->startTime);
+
+        contiuneProcess(lstPCB);
+    }
+    else if (lstPCB != highestPriorityProcess)
+    {
+        stopProcess(lstPCB);
+        currProcess = highestPriorityProcess->mappedProcessID;
+        lstPCB = highestPriorityProcess;
+        setPCBStartTime(lstPCB);
+        writeOutputLogFileStarted(lstPCB);
+        contiuneProcess(lstPCB);
+    }
+
 }
 
-// static void processSRTN(pqueue_t *pq)
-// {
-//     int clock = getClk();
-//     if (clock != lastclk)
-//     {
-//         lastclk = clock;
-//         if (pq->size > 0)
-//         {
-//             if (lastNode == NULL)
-//             {
-//                 lastNode = pq->head;
-//                 lastNode->data->state = RUN;
-//                 pid_t pid = fork();
-//                 if (pid == 0)
-//                 {
-//                     char *args[] = {"./process.out", NULL};
-//                     execvp(args[0], args);
-//                 }
-//                 else
-//                 {
-//                     lastNode->data->startTime = getClk();
-//                     lastNode->data->mappedProcessID = getpid(); //@uncertain what do you mean by mappedProcessID
-//                     lastNode->data->pid = getpid();
-//                 }
-//             }
 
-//             PCB *lastProcess = lastNode->data;
-//             /**
-//              * Note: read process it self
-//              * it is the one reponsible for sending that is has finished
-//              * There is no problem that we keep track of remaining time
-//              */
-
-//             if (lastProcess->remainingTime == 0)
-//             {
-//                 // TODO send message to process generator
-//                 // TODO delete node
-//                 lastProcess->finishTime = getClk();
-//                 PCB *finishedPCB = pop(pq);
-//                 // deletePCBEnrty(finishedPCB);
-//                 lastProcess = pq->head->data; //@uncertain will pop heapfy priority queue
-//                 lastProcess->state = RUN;
-//                 pid_t pid = fork();
-//                 if (pid == 0)
-//                 {
-//                     char *args[] = {"./process.out", NULL};
-//                     execvp(args[0], args);
-//                 }
-//                 else
-//                 {
-//                     lastProcess->startTime = getClk();
-//                     lastProcess->mappedProcessID = getpid(); //@uncertain what do you mean by mappedProcessID
-//                     lastProcess->pid = getpid();
-//                 }
-//             }
-//             else
-//             {
-//                 if (lastProcess != pq->head->data) //@uncertain delay
-//                 {
-//                     lastProcess->state = READY;
-//                     kill(lastProcess->pid, SIGUSR1); // send signal to lastprocess to sleep
-//                     lastProcess = pq->head->data;
-//                     if (lastProcess->state == RUN || lastProcess->state == BLOCKED || lastProcess->state == READY)
-//                     {
-//                         kill(lastProcess->pid, SIGUSR2); // send signal to process to wakeup
-//                     }
-//                     else
-//                     {
-//                         int pid = fork();
-//                         if (pid == 0)
-//                         {
-//                             lastProcess->state = RUN;
-//                             char *args[] = {"./process.out", NULL};
-//                             execvp(args[0], args);
-//                         }
-//                         else
-//                         {
-//                             lastProcess->startTime = getClk();
-//                             lastProcess->mappedProcessID = getpid(); //@uncertain what do you mean by mappedProcessID
-//                             lastProcess->pid = getpid();
-//                         }
-//                     }
-//                 }
-//             }
-//             lastProcess->remainingTime--;
-//         }
-//     }
-// }
 
 int intializeMsgQueue(char *file, int num)
 {
@@ -605,7 +559,7 @@ void initSchedular()
 int main(int argc, char *argv[])
 {
     initSchedular();
-    algorithmType = HPF;
+    algorithmType = SRTN;
 
     printf("Schedular Id %d\n", getpid());
     switch (algorithmType)
