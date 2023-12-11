@@ -38,13 +38,22 @@ void initProcess()
     intializeProcessRemainingTime();
 }
 
+int lstTime = 0;
+
+void handler(int signum)
+{
+    lstTime = getClk();
+}
+
 int main(int agrc, char *argv[])
 {
+    signal(SIGCONT, handler);
+
     initProcess();
-    printf("Hello from process\n");
+    printf("Hello from process %d\n", getpid());
     // TODO it needs to get the remaining time from somewhere
     // remainingtime = ??;
-    int lstTime = getClk();
+    lstTime = getClk();
     while (remainingtime > 0)
     {
         // remainingtime = ??;
@@ -53,7 +62,7 @@ int main(int agrc, char *argv[])
         {
             remainingtime--;
             lstTime = currClk;
-            printf("Process %d Remaining time = %d\n", getpid(), remainingtime);
+            printf("Time %d Process %d Remaining time = %d\n", lstTime, getpid(), remainingtime);
         }
     }
 

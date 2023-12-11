@@ -41,10 +41,10 @@ void writeOutputPerfFile()
         perror("Error opening log file for writing");
         exit(EXIT_FAILURE);
     }
-    cpuUtilization = ((float)totalRunTime / getClk())*100;
+    cpuUtilization = ((float)totalRunTime / getClk()) * 100;
     avgWTA = totalWTA / noProcessFinished;
     avgWaiting = totalWaitingTime / noProcessFinished;
-    // for (int i = 0; i < 3; i++)
+    // for (int i = 0; i < MAX_NUM_OF_PROCESS; i++)
     // {
     //     stdWTA += pow((processTable[i]->TA - avgWTA), 2);
     // }
@@ -58,20 +58,20 @@ void writeOutputPerfFile()
 
 void writeOutputLogFile()
 {
-    FILE *file = fopen("scheduler.log", "w"); 
+    FILE *file = fopen("scheduler.log", "w");
     if (file == NULL)
     {
         perror("Error opening log file for writing");
         exit(EXIT_FAILURE);
     }
-    fprintf(file,"#At time x process y state arr w total z remain y wait k\n");
+    fprintf(file, "#At time x process y state arr w total z remain y wait k\n");
 
     fclose(file);
 }
 
 void writeOutputLogFileStarted(PCB *process)
 {
-    if(process->startTime == getClk())
+    if (process->startTime == getClk())
     {
         FILE *file = fopen("scheduler.log", "a");
         if (file == NULL)
@@ -93,7 +93,7 @@ void writeOutputLogFileStarted(PCB *process)
 
 void writeOutputLogFileResumed(PCB *process)
 {
-    if(algorithmType != HPF)
+    if (algorithmType != HPF)
     {
         FILE *file = fopen("scheduler.log", "a");
         if (file == NULL)
@@ -145,7 +145,7 @@ void writeOutputLogFileFinished(PCB *process)
             process->processID,
             process->arrivalTime,
             process->runTime,
-            process->remainingTime,                                         // the remaining time is not correct as it is not updated from processor (zahar)
+            process->remainingTime, // the remaining time is not correct as it is not updated from processor (zahar)
             process->wait,
             process->TA,
             (float)(process->TA) / process->runTime);
@@ -179,22 +179,20 @@ static PCB *createPCBEntry(Process *newProcess)
     newPCBEntry->remainingTime = newProcess->runTime;
     newPCBEntry->priority = newProcess->priority;
     newPCBEntry->processID = newProcess->id;
-    newPCBEntry->runTime = newProcess->runTime;                         // needed for output files (zahar)
-    newPCBEntry->startTime = -1;                                        // to know if it was excuted before
+    newPCBEntry->runTime = newProcess->runTime; // needed for output files (zahar)
+    newPCBEntry->startTime = -1;                // to know if it was excuted before
     return newPCBEntry;
 }
 
 static void setPCBStartTime(PCB *pcbEntry)
 {
-    printf("kfaya\n");
-    if(pcbEntry->startTime == -1)                                    // it is working as a flag but i prefer to use a boolean (zahar)
+    if (pcbEntry->startTime == -1) // it is working as a flag but i prefer to use a boolean (zahar)
     {
         pcbEntry->startTime = getClk();
         printf("Start time %d\n", pcbEntry->startTime);
         pcbEntry->wait = pcbEntry->startTime - pcbEntry->arrivalTime;
         totalWaitingTime += pcbEntry->wait;
     }
-    
 }
 
 static void setPCBFinishedTime(PCB *pcbEntry)
@@ -285,6 +283,8 @@ static void processHPF(void *pqT)
         return;
 
     static ProcessID currProcess = -1;
+    static Time lstTime = -1;
+
     PCB *highestPriorityProcess = pqueue_peek(pq);
     if (highestPriorityProcess == NULL)
     {
@@ -306,6 +306,14 @@ static void processHPF(void *pqT)
         writeOutputLogFileStarted(lstPCB);
         contiuneProcess(lstPCB);
     }
+
+    Time currTime = getClk();
+    if (lstTime != currTime && currTime != lstPCB->startTime)
+    {
+        printf("Prev %d Curr %d\n", lstTime, currTime);
+        lstTime = currTime;
+        lstPCB->remainingTime--;
+    }
 }
 
 static void processSRTN(void *pqT)
@@ -318,13 +326,13 @@ static void processSRTN(void *pqT)
 
     static ProcessID currProcess = -1;
     static Time lstTime = -1;
-        
+
     PCB *highestPriorityProcess = pqueue_peek(pq);
     if (highestPriorityProcess == NULL)
     {
         return;
     }
-    
+
     if (currProcess == -1)
     {
         currProcess = highestPriorityProcess->mappedProcessID;
@@ -333,7 +341,7 @@ static void processSRTN(void *pqT)
         writeOutputLogFileStarted(lstPCB);
         contiuneProcess(lstPCB);
     }
-    else if (lstProcessKilled == currProcess)                                   
+    else if (lstProcessKilled == currProcess)
     {
         currProcess = highestPriorityProcess->mappedProcessID;
         lstPCB = highestPriorityProcess;
@@ -351,18 +359,12 @@ static void processSRTN(void *pqT)
         contiuneProcess(lstPCB);
     }
     Time currTime = getClk();
-    if(lstTime != currTime && currTime != highestPriorityProcess->startTime)
+    if (lstTime != currTime && currTime != lstPCB->startTime)
     {
-        printf("lsttime = %d\n",lstTime);
-        printf("currtime = %d\n",currTime);
-
         lstTime = currTime;
-        highestPriorityProcess->remainingTime--;
+        lstPCB->remainingTime--;
     }
-
 }
-
-
 
 int intializeMsgQueue(char *file, int num)
 {
@@ -544,7 +546,7 @@ static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initD
             addToDS(list, newPCBEntry);
         }
         algorithm(list);
-        if (noProcessFinished == 3)                         // 3 should be replaced with acrual # of processes from process_generator (zahar)
+        if (noProcessFinished == MAX_NUM_OF_PROCESS) // 3 should be replaced with acrual # of processes from process_generator (zahar)
         {
             writeOutputPerfFile();
             break;
@@ -555,6 +557,7 @@ static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initD
 void childProcessTerminationHandler(int signum)
 {
     int stat_loc = 0;
+    printf("Waittt\n");
     int pid = wait(&stat_loc);
     printf("Yes sub-process %d is removed\n", pid);
     removeCurrentProcessFromDs();
@@ -609,7 +612,7 @@ void initSchedular()
 int main(int argc, char *argv[])
 {
     initSchedular();
-    algorithmType = SRTN;
+    algorithmType = HPF;
 
     printf("Schedular Id %d\n", getpid());
     switch (algorithmType)
