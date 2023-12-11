@@ -23,7 +23,7 @@ typedef short bool;
 #define MSG_QUEUE_SHCEDULAR_PROCESS_KEY 107
 #define MSG_QUEUE_GENERATOR_SCHEDULAR_KEY 503
 #define KEY_FILE "keyfile"
-#define MAX_NUM_OF_PROCESS 3
+#define MAX_NUM_OF_PROCESS 10
 #define PROCESS_EXECUTABLE_NAME "process.out"
 #define MAX_NUM_OF_RESOURCES 5
 typedef struct buffer_item
@@ -75,8 +75,8 @@ typedef struct
     Time finishTime;
     Priority priority;
     size_t pqPosition;
-    Time wait;                 //(zahar)
-    Time TA;                   //(zahar)
+    Time wait; //(zahar)
+    Time TA;   //(zahar)
 
 } PCB;
 
