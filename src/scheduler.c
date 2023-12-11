@@ -187,7 +187,7 @@ static PCB *createPCBEntry(Process *newProcess)
 static void setPCBStartTime(PCB *pcbEntry)
 {
     printf("kfaya\n");
-    if(pcbEntry->startTime == 65535)                                    // it is working as a flag but i prefer to use a boolean (zahar)
+    if(pcbEntry->startTime == -1)                                    // it is working as a flag but i prefer to use a boolean (zahar)
     {
         pcbEntry->startTime = getClk();
         printf("Start time %d\n", pcbEntry->startTime);
@@ -317,11 +317,14 @@ static void processSRTN(void *pqT)
         return;
 
     static ProcessID currProcess = -1;
+    static Time lstTime = -1;
+        
     PCB *highestPriorityProcess = pqueue_peek(pq);
     if (highestPriorityProcess == NULL)
     {
         return;
     }
+    
     if (currProcess == -1)
     {
         currProcess = highestPriorityProcess->mappedProcessID;
@@ -346,6 +349,15 @@ static void processSRTN(void *pqT)
         setPCBStartTime(lstPCB);
         writeOutputLogFileStarted(lstPCB);
         contiuneProcess(lstPCB);
+    }
+    Time currTime = getClk();
+    if(lstTime != currTime && currTime != highestPriorityProcess->startTime)
+    {
+        printf("lsttime = %d\n",lstTime);
+        printf("currtime = %d\n",currTime);
+
+        lstTime = currTime;
+        highestPriorityProcess->remainingTime--;
     }
 
 }
