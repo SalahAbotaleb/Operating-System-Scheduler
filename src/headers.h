@@ -60,7 +60,7 @@ typedef struct Process
 } Process;
 
 typedef int ProcessID;
-typedef u_int16_t Time;
+typedef int Time;
 typedef u_int16_t Priority;
 
 typedef struct
