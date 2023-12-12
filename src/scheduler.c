@@ -381,13 +381,13 @@ int intializeMsgQueue(char *file, int num)
     return msgq_id;
 }
 
+int shedularProcessQueueId = 0;
 void intializeProcessRemainingTime(int remainingTime, int processId)
 {
-    int queueId = intializeMsgQueue(KEY_FILE, MSG_QUEUE_SHCEDULAR_PROCESS_KEY);
     messageBuff msg;
     msg.mIntegerData = remainingTime;
     msg.mtype = processId;
-    int send_val = msgsnd(queueId, &msg, sizeof(msg.mIntegerData), !IPC_NOWAIT);
+    int send_val = msgsnd(shedularProcessQueueId, &msg, sizeof(msg.mIntegerData), IPC_NOWAIT);
     if (send_val == -1)
     {
         perror("Errror in send");
@@ -526,18 +526,18 @@ void removeCurrentProcessFromDs()
     printf("Done Free\n");
 }
 
+int generatorSchedularQueueId = 0;
 static void handleProcesses(algorithm algorithm, addItem addToDS, createDS initDS)
 {
-    int rec_val, msgq_id;
+    int rec_val;
 
-    msgq_id = intializeMsgQueue(KEY_FILE, MSG_QUEUE_GENERATOR_SCHEDULAR_KEY);
     Process receivedProcess;
     void *list = initDS();
     assignListToReference(list);
     writeOutputLogFile();
     while (true)
     {
-        rec_val = msgrcv(msgq_id, &receivedProcess, sizeof(Process) - sizeof(long), 0, IPC_NOWAIT);
+        rec_val = msgrcv(generatorSchedularQueueId, &receivedProcess, sizeof(Process) - sizeof(long), 0, IPC_NOWAIT);
         if (rec_val != -1)
         {
             printf("Received %d\n", receivedProcess.id);
@@ -607,6 +607,8 @@ void initSchedular()
     initClkResource();
     initProcessTable();
     initSignalsHandlers();
+    shedularProcessQueueId = intializeMsgQueue(KEY_FILE, MSG_QUEUE_SHCEDULAR_PROCESS_KEY);
+    generatorSchedularQueueId = intializeMsgQueue(KEY_FILE, MSG_QUEUE_GENERATOR_SCHEDULAR_KEY);
 }
 
 int main(int argc, char *argv[])
