@@ -74,4 +74,12 @@ void *RemoveNodeFromFront(LinkedList *listPtr);
  */
 void *RemoveNodeFromBack(LinkedList *listPtr);
 
+
+/**
+ * @brief peeks at the first node of the linked list
+ * @param listPtr pointer to linked list
+ * @return pointer to data of the first node, or NULL if the list is empty
+ */
+void *Peek(LinkedList *listPtr);
+
 #endif

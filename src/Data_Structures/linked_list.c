@@ -114,3 +114,11 @@ void *RemoveNode(LinkedList *listPtr, Node *nodePtr)
     }
 //    return nodePtr;
 }
+
+void *Peek(LinkedList *listPtr) 
+{
+    if (listPtr == NULL || listPtr->head == NULL) {
+        return NULL;
+    }
+    return listPtr->head->data;
+}
