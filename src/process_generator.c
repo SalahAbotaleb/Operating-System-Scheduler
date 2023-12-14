@@ -103,7 +103,7 @@ Process *readInputFiles()
 
         i++;
     }
-
+    
     return processes;
 }
 

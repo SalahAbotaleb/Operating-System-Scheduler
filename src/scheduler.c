@@ -366,6 +366,54 @@ static void processSRTN(void *pqT)
     }
 }
 
+//zahar is cooking
+// static void processRR(void *listT)
+// {
+//     LinkedList *list = (LinkedList *)listT;
+//     if (list->size == 0)
+//         return;
+
+//     static ProcessID currProcess = -1;
+//     static Time lstTime = -1;
+
+//     PCB *headProcess = Peek(list);
+//     if (headProcess == NULL)
+//     {
+//         return;
+//     }
+    
+//     if(currProcess == -1)
+//     {
+//         currProcess = headProcess->mappedProcessID;
+//         lstPCB = headProcess;
+//         setPCBStartTime(lstPCB);
+//         writeOutputLogFileStarted(lstPCB);
+//         contiuneProcess(lstPCB);
+//     }
+//     else if (lstProcessKilled == currProcess)
+//     {
+//        // if(list->nxt == NULL)
+//        //     lstPCB = headProcess;
+//        // else
+//        //     lstPCB = list->nxt->data;
+//         currProcess = lstPCB->mappedProcessID;
+//         setPCBStartTime(lstPCB);
+//         writeOutputLogFileStarted(lstPCB);
+//         contiuneProcess(lstPCB);
+//     }
+    
+//     ///////////////////
+//     // else if(quantum condition)
+//     ////////////////////
+
+//     Time currTime = getClk();
+//     if (lstTime != currTime && currTime != lstPCB->startTime)
+//     {
+//         lstTime = currTime;
+//         lstPCB->remainingTime--;
+//     }
+// }
+
 int intializeMsgQueue(char *file, int num)
 {
     key_t key_id;
