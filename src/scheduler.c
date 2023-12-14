@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <math.h>
 
 typedef void (*algorithm)(void *);
 typedef void (*addItem)(void *, PCB *);
@@ -27,11 +28,12 @@ static State lstState;
 static int noProcessFinished = 0;
 static int totalRunTime = 0;
 static float totalWTA = 0;
-static int totalWaitingTime = 0;
+static float totalWaitingTime = 0;
 static float cpuUtilization = 0;
 static float avgWTA = 0;
 static float avgWaiting = 0;
 static float stdWTA = 0;
+static float stdWTAsq = 0;
 
 void writeOutputPerfFile()
 {
@@ -44,10 +46,8 @@ void writeOutputPerfFile()
     cpuUtilization = ((float)totalRunTime / getClk()) * 100;
     avgWTA = totalWTA / noProcessFinished;
     avgWaiting = totalWaitingTime / noProcessFinished;
-    // for (int i = 0; i < MAX_NUM_OF_PROCESS; i++)
-    // {
-    //     stdWTA += pow((processTable[i]->TA - avgWTA), 2);
-    // }
+    stdWTA = sqrt((stdWTAsq / noProcessFinished) - (avgWTA*avgWTA));
+
     fprintf(file, "CPU utilization = %.2f%%\n", cpuUtilization);
     fprintf(file, "Avg WTA = %.2f\n", avgWTA);
     fprintf(file, "Avg Waiting = %.2f\n", avgWaiting);
@@ -148,7 +148,7 @@ void writeOutputLogFileFinished(PCB *process)
             process->remainingTime, // the remaining time is not correct as it is not updated from processor (zahar)
             process->wait,
             process->TA,
-            (float)(process->TA) / process->runTime);
+            process->WTA);
 
     fclose(file);
 }
@@ -199,7 +199,9 @@ static void setPCBFinishedTime(PCB *pcbEntry)
 {
     pcbEntry->finishTime = getClk();
     pcbEntry->TA = pcbEntry->finishTime - pcbEntry->arrivalTime;
-    totalWTA = totalWTA + ((float)pcbEntry->TA / pcbEntry->runTime);
+    pcbEntry->WTA = (float)pcbEntry->TA / pcbEntry->runTime;
+    totalWTA = totalWTA + pcbEntry->WTA;
+    stdWTAsq += (pcbEntry->WTA*pcbEntry->WTA); 
 }
 
 static void deletePCBEnrty(PCB *pcbEntry)
