@@ -98,7 +98,6 @@ void *RemoveNodeFromBack(LinkedList *listPtr)
 
 void *RemoveNode(LinkedList *listPtr, Node *nodePtr)
 {
-    listPtr->size--;
     if (nodePtr == listPtr->head)
     {
         return RemoveNodeFromFront(listPtr);
@@ -109,6 +108,7 @@ void *RemoveNode(LinkedList *listPtr, Node *nodePtr)
     }
     else
     {
+        listPtr->size--;
         nodePtr->prev->nxt = nodePtr->nxt;
         nodePtr->nxt->prev = nodePtr->prev;
     }
