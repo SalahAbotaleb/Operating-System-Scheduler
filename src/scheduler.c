@@ -30,10 +30,17 @@ static int totalRunTime = 0;
 static float totalWTA = 0;
 static float totalWaitingTime = 0;
 static float cpuUtilization = 0;
+static float totalTA = 0;
 static float avgWTA = 0;
 static float avgWaiting = 0;
 static float stdWTA = 0;
 static float stdWTAsq = 0;
+int quantum = 1; //process quantum send by process generator in argument 
+int currquantum; //current quantum for process
+
+void initializeQuantum() {
+    currquantum = quantum;
+}
 
 void writeOutputPerfFile () {
     FILE *file = fopen("scheduler.perf", "w");
@@ -45,7 +52,6 @@ void writeOutputPerfFile () {
     avgWTA = totalWTA / noProcessFinished;
     avgWaiting = totalWaitingTime / noProcessFinished;
     stdWTA = sqrt((stdWTAsq / noProcessFinished) - (avgWTA * avgWTA));
-    
     fprintf(file, "CPU utilization = %.2f%%\n", cpuUtilization);
     fprintf(file, "Avg WTA = %.2f\n", avgWTA);
     fprintf(file, "Avg Waiting = %.2f\n", avgWaiting);
@@ -171,7 +177,10 @@ static void setPCBStartTime (PCB *pcbEntry) {
     {
         pcbEntry->startTime = getClk();
         printf("Start time %d\n", pcbEntry->startTime);
-        pcbEntry->wait = pcbEntry->startTime - pcbEntry->arrivalTime;
+        if (pcbEntry->startTime == 0)
+            pcbEntry->wait = 0;
+        else    
+            pcbEntry->wait = pcbEntry->startTime - pcbEntry->arrivalTime;
         totalWaitingTime += pcbEntry->wait;
     }
 }
@@ -182,6 +191,7 @@ static void setPCBFinishedTime (PCB *pcbEntry) {
     pcbEntry->WTA = (float) pcbEntry->TA / pcbEntry->runTime;
     totalWTA = totalWTA + pcbEntry->WTA;
     stdWTAsq += (pcbEntry->WTA * pcbEntry->WTA);
+    totalTA += pcbEntry->TA;
 }
 
 static void deletePCBEnrty (PCB *pcbEntry) {
@@ -336,7 +346,7 @@ static void processSRTN (void *pqT) {
     }
 }
 
-//zahar is cooking
+// zahar is cooking
 // static void processRR(void *listT)
 // {
 //     LinkedList *list = (LinkedList *)listT;
@@ -345,32 +355,52 @@ static void processSRTN (void *pqT) {
 
 //     static ProcessID currProcess = -1;
 //     static Time lstTime = -1;
-
+//     static Node *currProcessNode = NULL;
+//     static Node *nxtProcessNode = NULL;
 //     PCB *headProcess = Peek(list);
 //     if (headProcess == NULL)
 //     {
 //         return;
 //     }
 
-//     if(currProcess == -1)
+//     if (currProcess == -1)
 //     {
 //         currProcess = headProcess->mappedProcessID;
 //         lstPCB = headProcess;
+//         currProcessNode = list->head;
 //         setPCBStartTime(lstPCB);
 //         writeOutputLogFileStarted(lstPCB);
 //         contiuneProcess(lstPCB);
+//         initializeQuantum();
 //     }
 //     else if (lstProcessKilled == currProcess)
 //     {
-//        // if(list->nxt == NULL)
-//        //     lstPCB = headProcess;
-//        // else
-//        //     lstPCB = list->nxt->data;
+//         if(nxtProcessNode == NULL)
+//             currProcessNode = list->head;
+//         else
+//             currProcessNode = currProcessNode->nxt;
+//         lstPCB = currProcessNode->data;
 //         currProcess = lstPCB->mappedProcessID;
 //         setPCBStartTime(lstPCB);
 //         writeOutputLogFileStarted(lstPCB);
 //         contiuneProcess(lstPCB);
+//         initializeQuantum();
 //     }
+//     else if (currquantum == 0)
+//     {
+//         stopProcess(lstPCB);
+//         if(nxtProcessNode == NULL)
+//             currProcessNode = list->head;
+//         else
+//             currProcessNode = currProcessNode->nxt;
+//         lstPCB = currProcessNode->data;
+//         currProcess = lstPCB->mappedProcessID;
+//         setPCBStartTime(lstPCB);
+//         writeOutputLogFileStarted(lstPCB);
+//         contiuneProcess(lstPCB);
+//         initializeQuantum();
+//     }
+//     nxtProcessNode = currProcessNode->nxt;
 
 //     ///////////////////
 //     // else if(quantum condition)
@@ -381,6 +411,7 @@ static void processSRTN (void *pqT) {
 //     {
 //         lstTime = currTime;
 //         lstPCB->remainingTime--;
+//         currquantum--;
 //     }
 // }
 
@@ -550,6 +581,7 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
             MAX_NUM_OF_PROCESS) // 3 should be replaced with acrual # of processes from process_generator (zahar)
         {
             writeOutputPerfFile();
+            printf("avgTA: %f\n", totalTA/noProcessFinished);
             break;
         }
     }
