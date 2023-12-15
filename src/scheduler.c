@@ -38,7 +38,7 @@ static float stdWTAsq = 0;
 int quantum = 1; //process quantum send by process generator in argument 
 int currquantum; //current quantum for process
 
-void initializeQuantum() {
+void initializeQuantum () {
     currquantum = quantum;
 }
 
@@ -176,10 +176,11 @@ static void setPCBStartTime (PCB *pcbEntry) {
     if (pcbEntry->startTime == -1) // it is working as a flag but i prefer to use a boolean (zahar)
     {
         pcbEntry->startTime = getClk();
+        printf("clock %d\n", getClk());
         printf("Start time %d\n", pcbEntry->startTime);
         if (pcbEntry->startTime == 0)
             pcbEntry->wait = 0;
-        else    
+        else
             pcbEntry->wait = pcbEntry->startTime - pcbEntry->arrivalTime;
         totalWaitingTime += pcbEntry->wait;
     }
@@ -222,32 +223,62 @@ static void processRR (void *listT) {
     if (list->size == 0)
         return;
     
+    if (list->head == NULL) {
+        return;
+    }
     static Time lstTime = -1;
     
     
     if (lstProcessKilled != -2) {
         lstProcessKilled = -2;
-        lastclk = getClk() - 1;
+        
+        PCB *process = lastNode->data;
+        printf("hena Process ID: %d, Priority: %d\n", process->processID,
+               process->priority);
+        setPCBStartTime(process);
+        writeOutputLogFileStarted(process);
+        contiuneProcess(process);
+        
+        return;
     }
     
     int clock = getClk();
-    if (clock != lastclk) {
-        stopProcess(lastNode->data);
-        lastclk = clock;
+    
+    if (clock - lastclk >= 4 || (clock == 1 && lastNode == NULL)) {
         if (lastNode == NULL) {
             lastNode = list->head;
         } else {
+            lstPCB = lastNode->data;
+            if (clock != lstPCB->startTime) {
+                printf("Prev %d Curr %d\n", lastclk, clock);
+                lstPCB->remainingTime--;
+            }
+            
+            stopProcess(lstPCB);
+            //print linked list
+            Node *temp = list->head;
+            while (temp != NULL) {
+                printf("Process ID: %d, Priority: %d\n", ((PCB *) temp->data)->processID,
+                       ((PCB *) temp->data)->priority);
+                temp = temp->nxt;
+            }
+            
             if (lastNode->nxt == NULL) {
                 lastNode = list->head;
             } else {
                 lastNode = lastNode->nxt;
             }
         }
+        lastclk = clock;
+        
         PCB *process = lastNode->data;
         
         setPCBStartTime(process);
+        printf("after set start time\n");
         writeOutputLogFileStarted(process);
+        printf("after write to log file\n");
         contiuneProcess(process);
+        printf("after continue process\n");
         /*
          * Note: read process it self
          * it is the one reponsible for sending that is has finished
@@ -260,13 +291,8 @@ static void processRR (void *listT) {
 //        } else {
 //            // TODO start process
 //        }
-        
-        Time currTime = getClk();
-        if (lstTime != currTime && currTime != lstPCB->startTime) {
-            printf("Prev %d Curr %d\n", lstTime, currTime);
-            lstTime = currTime;
-            lstPCB->remainingTime--;
-        }
+    
+    
     }
 }
 
@@ -318,7 +344,8 @@ static void processSRTN (void *pqT) {
     if (highestPriorityProcess == NULL) {
         return;
     }
-    
+    Time currTime = getClk();
+    int dec = 0;
     if (currProcess == -1) {
         currProcess = highestPriorityProcess->mappedProcessID;
         lstPCB = highestPriorityProcess;
@@ -332,6 +359,11 @@ static void processSRTN (void *pqT) {
         writeOutputLogFileStarted(lstPCB);
         contiuneProcess(lstPCB);
     } else if (lstPCB != highestPriorityProcess) {
+        if (lstTime != currTime && currTime != lstPCB->startTime) {
+            lstTime = currTime;
+            lstPCB->remainingTime--;
+            dec = 1;
+        }
         stopProcess(lstPCB);
         currProcess = highestPriorityProcess->mappedProcessID;
         lstPCB = highestPriorityProcess;
@@ -339,10 +371,11 @@ static void processSRTN (void *pqT) {
         writeOutputLogFileStarted(lstPCB);
         contiuneProcess(lstPCB);
     }
-    Time currTime = getClk();
     if (lstTime != currTime && currTime != lstPCB->startTime) {
         lstTime = currTime;
-        lstPCB->remainingTime--;
+        if (dec == 0)
+            lstPCB->remainingTime--;
+        dec = 0;
     }
 }
 
@@ -547,10 +580,11 @@ void removeCurrentProcessFromDs () {
         case RR:
             RemoveNode(llRR, lastNode);
             process = lastNode->data;
-            if (lastNode->nxt == NULL)
-                lastNode = llRR->head;
-            else
-                lastNode = lastNode->nxt;
+            if (lastNode->prev == NULL)
+                lastNode = llRR->tail;
+            else {
+                lastNode = lastNode->prev;
+            }
             break;
     }
     setPCBFinishedTime(process);
@@ -568,7 +602,11 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
     void *list = initDS();
     assignListToReference(list);
     writeOutputLogFile();
+    int lastclk = -1;
     while (true) {
+        if (getClk() == lastclk)
+            usleep(50);
+        lastclk = getClk();
         rec_val = msgrcv(generatorSchedularQueueId, &receivedProcess, sizeof(Process) - sizeof(long), 0, IPC_NOWAIT);
         if (rec_val != -1) {
             printf("Received %d\n", receivedProcess.id);
@@ -581,7 +619,7 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
             MAX_NUM_OF_PROCESS) // 3 should be replaced with acrual # of processes from process_generator (zahar)
         {
             writeOutputPerfFile();
-            printf("avgTA: %f\n", totalTA/noProcessFinished);
+            printf("avgTA: %f\n", totalTA / noProcessFinished);
             break;
         }
     }
