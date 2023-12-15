@@ -66,7 +66,8 @@ int main (int argc, char *argv[]) {
                 perror("Error in send");
                 continue;
             }
-            
+
+            printf("current time is %d\n", getClk());
             printf("Sent process %d to scheduler\n", processes[currProcess].id);
             currProcess++;
         }
