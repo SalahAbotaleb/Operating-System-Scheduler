@@ -23,6 +23,7 @@ static LinkedList *llRR = NULL; // linked list for Round Robin Algorithm
 static int resources[MAX_NUM_OF_RESOURCES] = {-1};
 static int currentResourcesCount = 0;
 static int lstProcessKilled = -2;
+static int isProcessKilled = 0;
 static PCB *lstPCB = NULL;
 static State lstState;
 static int noProcessFinished = 0;
@@ -227,31 +228,34 @@ static void processRR (void *listT) {
         return;
     }
     static Time lstTime = -1;
-    
-    
-    if (lstProcessKilled != -2) {
-        lstProcessKilled = -2;
-        
-        PCB *process = lastNode->data;
-        printf("hena Process ID: %d, Priority: %d\n", process->processID,
-               process->priority);
-        setPCBStartTime(process);
-        writeOutputLogFileStarted(process);
-        contiuneProcess(process);
-        
-        return;
-    }
+
+
+//    if (lstProcessKilled != -2) {
+//        lstProcessKilled = -2;
+//
+//        PCB *process = lastNode->data;
+//        printf("hena Process ID: %d, Priority: %d\n", process->processID,
+//               process->priority);
+//        setPCBStartTime(process);
+//        writeOutputLogFileStarted(process);
+//        contiuneProcess(process);
+//        lastclk = getClk();
+//        return;
+//    }
     
     int clock = getClk();
     
-    if (clock - lastclk >= 4 || (clock == 1 && lastNode == NULL)) {
+    if (clock - lastclk >= 4 || lastNode == NULL) {
         if (lastNode == NULL) {
             lastNode = list->head;
+            if (lastNode == NULL) {
+                return;
+            }
         } else {
             lstPCB = lastNode->data;
             if (clock != lstPCB->startTime) {
                 printf("Prev %d Curr %d\n", lastclk, clock);
-                lstPCB->remainingTime--;
+                lstPCB->remainingTime = lstPCB->remainingTime - 4;
             }
             
             stopProcess(lstPCB);
@@ -279,20 +283,24 @@ static void processRR (void *listT) {
         printf("after write to log file\n");
         contiuneProcess(process);
         printf("after continue process\n");
-        /*
-         * Note: read process it self
-         * it is the one reponsible for sending that is has finished
-         * There is no problem that we keep track of remaining time
-         */
-//        process->remainingTime--;
-//        if (process->remainingTime == 0) {
-//            // TODO send message to process generator
-//            // TODO delete node
-//        } else {
-//            // TODO start process
-//        }
-    
-    
+        
+    } else if (((PCB *) lastNode->data)->remainingTime < 4 && ((PCB *) lastNode->data)->remainingTime > 0) {
+        ((PCB*)lastNode->data)->remainingTime--;
+    } else if (((PCB *) lastNode->data)->remainingTime <= 0) {
+        if (lastNode->nxt == NULL)
+            lastNode = list->head;
+        else {
+            lastNode = lastNode->nxt;
+        }
+        PCB *process = lastNode->data;
+        setPCBStartTime(process);
+        printf("after set start time\n");
+        writeOutputLogFileStarted(process);
+        printf("after write to log file\n");
+        contiuneProcess(process);
+        printf("after continue process\n");
+        lastclk = getClk();
+        return;
     }
 }
 
@@ -580,11 +588,6 @@ void removeCurrentProcessFromDs () {
         case RR:
             RemoveNode(llRR, lastNode);
             process = lastNode->data;
-            if (lastNode->prev == NULL)
-                lastNode = llRR->tail;
-            else {
-                lastNode = lastNode->prev;
-            }
             break;
     }
     setPCBFinishedTime(process);
@@ -602,11 +605,12 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
     void *list = initDS();
     assignListToReference(list);
     writeOutputLogFile();
-    int lastclk = -1;
+    int lstclk = -1;
     while (true) {
-        if (getClk() == lastclk)
+        if (getClk() == lstclk)
             usleep(50);
-        lastclk = getClk();
+        lstclk = getClk();
+        
         rec_val = msgrcv(generatorSchedularQueueId, &receivedProcess, sizeof(Process) - sizeof(long), 0, IPC_NOWAIT);
         if (rec_val != -1) {
             printf("Received %d\n", receivedProcess.id);
@@ -615,6 +619,10 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
             addToDS(list, newPCBEntry);
         }
         algorithm(list);
+        if (isProcessKilled == 1) {
+            isProcessKilled = 0;
+            removeCurrentProcessFromDs();
+        }
         if (noProcessFinished ==
             MAX_NUM_OF_PROCESS) // 3 should be replaced with acrual # of processes from process_generator (zahar)
         {
@@ -625,12 +633,13 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
     }
 }
 
+
 void childProcessTerminationHandler (int signum) {
     int stat_loc = 0;
     printf("Waittt\n");
     int pid = wait(&stat_loc);
     printf("Yes sub-process %d is removed\n", pid);
-    removeCurrentProcessFromDs();
+    isProcessKilled = 1;
     lstProcessKilled = pid;
 }
 
