@@ -270,8 +270,7 @@ static void processRR (void *listT) {
             //printf("Prev %d Curr %d\n", lastclk, clock);
             lstPCB->remainingTime = lstPCB->remainingTime - quantum;
             
-            if (lstPCB->remainingTime > 0)
-                stopProcess(lstPCB);
+            stopProcess(lstPCB);
             //print linked list
             Node *temp = list->head;
             while (temp != NULL) {
