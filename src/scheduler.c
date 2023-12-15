@@ -14,6 +14,7 @@ typedef void (*addItem) (void *, PCB *);
 typedef void *(*createDS) ();
 
 static int lastclk = 0;
+static int lastsec = 0;
 static Node *lastNode = NULL; // it is used in processRR & processSRTN
 static PCB **processTable = NULL;
 static SchedulingAlgorithm algorithmType;
@@ -24,6 +25,7 @@ static int resources[MAX_NUM_OF_RESOURCES] = {-1};
 static int currentResourcesCount = 0;
 static int lstProcessKilled = -2;
 static int isProcessKilled = 0;
+static int isProcessRemoved = 0;
 static PCB *lstPCB = NULL;
 static State lstState;
 static int noProcessFinished = 0;
@@ -245,7 +247,27 @@ static void processRR (void *listT) {
     
     int clock = getClk();
     
-    if (clock - lastclk >= 4 || lastNode == NULL) {
+    if (isProcessRemoved == 1) {
+        
+        lastclk = clock;
+        lastsec = clock;
+        
+        if (lastNode->nxt == NULL) {
+            lastNode = list->head;
+        } else {
+            lastNode = lastNode->nxt;
+        }
+        printf("Process %d should start\n", ((PCB *) lastNode->data)->processID);
+        PCB *process = lastNode->data;
+        setPCBStartTime(process);
+        printf("after set start time\n");
+        writeOutputLogFileStarted(process);
+        printf("after write to log file\n");
+        contiuneProcess(process);
+        printf("after continue process\n");
+        printf("last clk %d\n", lastclk);
+        isProcessRemoved = 0;
+    } else if ((clock - lastclk >= quantum && lastNode != NULL && ((PCB *) lastNode->data)->remainingTime > quantum) || lastNode == NULL) {
         if (lastNode == NULL) {
             lastNode = list->head;
             if (lastNode == NULL) {
@@ -253,12 +275,12 @@ static void processRR (void *listT) {
             }
         } else {
             lstPCB = lastNode->data;
-            if (clock != lstPCB->startTime) {
-                printf("Prev %d Curr %d\n", lastclk, clock);
-                lstPCB->remainingTime = lstPCB->remainingTime - 4;
-            }
             
-            stopProcess(lstPCB);
+            printf("Prev %d Curr %d\n", lastclk, clock);
+            lstPCB->remainingTime = lstPCB->remainingTime - quantum;
+            
+            if (lstPCB->remainingTime > 0)
+                stopProcess(lstPCB);
             //print linked list
             Node *temp = list->head;
             while (temp != NULL) {
@@ -274,6 +296,8 @@ static void processRR (void *listT) {
             }
         }
         lastclk = clock;
+        lastsec = clock;
+        printf("Last clk %d\n", lastclk);
         
         PCB *process = lastNode->data;
         
@@ -283,24 +307,11 @@ static void processRR (void *listT) {
         printf("after write to log file\n");
         contiuneProcess(process);
         printf("after continue process\n");
-        
-    } else if (((PCB *) lastNode->data)->remainingTime < 4 && ((PCB *) lastNode->data)->remainingTime > 0) {
-        ((PCB*)lastNode->data)->remainingTime--;
-    } else if (((PCB *) lastNode->data)->remainingTime <= 0) {
-        if (lastNode->nxt == NULL)
-            lastNode = list->head;
-        else {
-            lastNode = lastNode->nxt;
-        }
-        PCB *process = lastNode->data;
-        setPCBStartTime(process);
-        printf("after set start time\n");
-        writeOutputLogFileStarted(process);
-        printf("after write to log file\n");
-        contiuneProcess(process);
-        printf("after continue process\n");
-        lastclk = getClk();
-        return;
+        printf("last clk %d\n", lastclk);
+    } else if (clock != lastsec && ((PCB *) lastNode->data)->remainingTime <= quantum &&
+               ((PCB *) lastNode->data)->remainingTime > 0) {
+        ((PCB *) lastNode->data)->remainingTime--;
+        lastsec = clock;
     }
 }
 
@@ -598,6 +609,7 @@ void removeCurrentProcessFromDs () {
 }
 
 int generatorSchedularQueueId = 0;
+
 static void handleProcesses (algorithm algorithm, addItem addToDS, createDS initDS) {
     int rec_val;
     
@@ -610,7 +622,11 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
         if (getClk() == lstclk)
             usleep(50);
         lstclk = getClk();
-        
+        if (isProcessKilled == 1) {
+            isProcessKilled = 0;
+            removeCurrentProcessFromDs();
+            isProcessRemoved = 1;
+        }
         rec_val = msgrcv(generatorSchedularQueueId, &receivedProcess, sizeof(Process) - sizeof(long), 0, IPC_NOWAIT);
         if (rec_val != -1) {
             printf("Received %d\n", receivedProcess.id);
@@ -619,10 +635,6 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
             addToDS(list, newPCBEntry);
         }
         algorithm(list);
-        if (isProcessKilled == 1) {
-            isProcessKilled = 0;
-            removeCurrentProcessFromDs();
-        }
         if (noProcessFinished ==
             MAX_NUM_OF_PROCESS) // 3 should be replaced with acrual # of processes from process_generator (zahar)
         {
@@ -685,7 +697,8 @@ void initSchedular () {
 
 int main (int argc, char *argv[]) {
     initSchedular();
-    algorithmType = RR;
+    algorithmType = atoi(argv[1]);
+    quantum = atoi(argv[2]);
     
     printf("Schedular Id %d\n", getpid());
     switch (algorithmType) {
