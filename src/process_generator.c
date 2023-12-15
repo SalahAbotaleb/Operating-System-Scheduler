@@ -4,14 +4,20 @@ void clearResources (int);
 Process *readInputFiles ();
 SchedulingAlgorithm chooseSchedulingAlgorithm ();
 static long quantum = 0;
+int maxNumOfProcess;
 
 int main (int argc, char *argv[]) {
     //    signal(SIGINT, clearResources);
     // TODO Initialization
+
+    printf("Please Enter Number of Processes:\n");
+    scanf("%d", &maxNumOfProcess);
+    MAX_NUM_OF_PROCESS = maxNumOfProcess;
+    printf("Number of Processes is %d\n", MAX_NUM_OF_PROCESS);
     // 1. Read the input files.
     Process *processes;
     processes = readInputFiles();
-    
+    printf("Processes are:\n");
     // 2. Ask the user for the chosen scheduling algorithm and its parameters, if there are any.
     SchedulingAlgorithm algorithm = chooseSchedulingAlgorithm();
     
@@ -30,7 +36,9 @@ int main (int argc, char *argv[]) {
         sprintf(alg, "%d", algorithm);
         char quant[2];
         sprintf(quant, "%ld", quantum);
-        char *args[] = {"./scheduler.out", alg, quant, NULL};
+        char maxNumProc[10];
+        sprintf(maxNumProc, "%d", maxNumOfProcess);
+        char *args[] = {"./scheduler.out", alg, quant, maxNumProc , NULL};
         execvp(args[0], args);
     }
     
@@ -42,14 +50,15 @@ int main (int argc, char *argv[]) {
     // TODO Generation Main Loop
     // 5. Create a data structure for processes and provide it with its parameters.
     // Done
+
     
     // 6. Send the information to the scheduler at the appropriate time.
     int currProcess = 0;
     key_t key_id = ftok(KEY_FILE, MSG_QUEUE_GENERATOR_SCHEDULAR_KEY); // create unique key
     int msgq_id = msgget(key_id, 0666 | IPC_CREAT);                   // create message queue and return id
-    while (currProcess < MAX_NUM_OF_PROCESS) {
+    while (currProcess < maxNumOfProcess) {
         int currTime = getClk();
-        while (currTime >= processes[currProcess].arrivalTime && currProcess < MAX_NUM_OF_PROCESS) {
+        while (currTime >= processes[currProcess].arrivalTime && currProcess < maxNumOfProcess) {
             // TODO send the process to the scheduler
             processes[currProcess].mtype = 1;
             int send_val = msgsnd(msgq_id, &processes[currProcess], sizeof(Process) - sizeof(long), !IPC_NOWAIT);
@@ -79,7 +88,7 @@ Process *readInputFiles () {
     FILE *file = fopen("processes.txt", "r");
     char *line = malloc(100 * sizeof(char));
     
-    Process *processes = malloc(MAX_NUM_OF_PROCESS * sizeof(Process)); // not dynamic
+    Process *processes = malloc(maxNumOfProcess * sizeof(Process)); // not dynamic
     
     int i = 0;
     while (fgets(line, 100, file)) {
