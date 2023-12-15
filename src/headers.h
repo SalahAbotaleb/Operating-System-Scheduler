@@ -37,9 +37,6 @@ typedef struct buffer_item
 
 typedef enum
 {
-    // RUN,
-    // BLOCKED,
-    // READY
     STARTED,
     RESUMED,
     STOPPED,

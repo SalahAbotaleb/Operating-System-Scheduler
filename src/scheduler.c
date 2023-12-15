@@ -150,6 +150,7 @@ void writeOutputLogFileFinished (PCB *process) {
 }
 
 void stopProcess (PCB *process) {
+    process->state = STOPPED;
     writeOutputLogFileStopped(process);
     kill(process->mappedProcessID, SIGSTOP);
 }
@@ -157,6 +158,7 @@ void stopProcess (PCB *process) {
 void contiuneProcess (PCB *process) {
     if (process->startTime != getClk())
     {
+        process->state = RESUMED;
         process->wait = getClk() - process->arrivalTime - process->runTime + process->remainingTime;
         writeOutputLogFileResumed(process);
     }
@@ -183,6 +185,7 @@ static void setPCBStartTime (PCB *pcbEntry) {
     if (pcbEntry->startTime == -1)
     {
         pcbEntry->startTime = getClk();
+        pcbEntry->state = STARTED;
         printf("clock %d\n", getClk());
         if (pcbEntry->startTime == 0)
             pcbEntry->wait = 0;
@@ -192,6 +195,7 @@ static void setPCBStartTime (PCB *pcbEntry) {
 }
 
 static void setPCBFinishedTime (PCB *pcbEntry) {
+    pcbEntry->state = FINISHED;
     pcbEntry->finishTime = getClk();
     pcbEntry->TA = pcbEntry->finishTime - pcbEntry->arrivalTime;
     pcbEntry->wait = pcbEntry->TA - pcbEntry->runTime;
