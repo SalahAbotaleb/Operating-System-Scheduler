@@ -157,7 +157,7 @@ void stopProcess (PCB *process) {
 void contiuneProcess (PCB *process) {
     if (process->startTime != getClk())
     {
-        //process->wait += getClk() - process->startTime;
+        process->wait = getClk() - process->arrivalTime - process->runTime + process->remainingTime;
         writeOutputLogFileResumed(process);
     }
     kill(process->mappedProcessID, SIGCONT);
@@ -185,11 +185,10 @@ static void setPCBStartTime (PCB *pcbEntry) {
         pcbEntry->startTime = getClk();
         printf("clock %d\n", getClk());
         printf("Start time %d\n", pcbEntry->startTime);
-        // if (pcbEntry->startTime == 0)
-        //     pcbEntry->wait = 0;
-        // else
-        //     pcbEntry->wait = pcbEntry->startTime - pcbEntry->arrivalTime;
-        // totalWaitingTime += pcbEntry->wait;
+        if (pcbEntry->startTime == 0)
+            pcbEntry->wait = 0;
+        else
+            pcbEntry->wait = pcbEntry->startTime - pcbEntry->arrivalTime;
     }
 }
 
