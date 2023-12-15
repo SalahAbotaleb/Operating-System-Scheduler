@@ -329,7 +329,6 @@ static void processHPF (void *pqT) {
     
     Time currTime = getClk();
     if (lstTime != currTime && currTime != lstPCB->startTime) {
-        //printf("Prev %d Curr %d\n", lstTime, currTime);
         lstTime = currTime;
         lstPCB->remainingTime--;
     }
@@ -452,37 +451,6 @@ void assignListToReference (void *list) {
     }
 }
 
-// void pqTest () {
-//     PCB *processTable;
-//     pqueue_t *pq;
-//     processTable = malloc(maxNumOfProcess * sizeof(PCB));
-//     processTable[0].priority = 0;
-//     processTable[0].processID = 0;
-//     processTable[1].priority = 1;
-//     processTable[1].processID = 1;
-//     processTable[2].priority = 2;
-//     processTable[2].processID = 2;
-//     processTable[3].priority = 3;
-//     processTable[3].processID = 3;
-//     processTable[4].priority = 4;
-//     processTable[4].processID = 4;
-//     pq = pqueue_init(maxNumOfProcess, cmpPriority, getPriority, setPriority, get_pos, set_pos);
-//     pqueue_insert(pq, &processTable[0]);
-//     pqueue_insert(pq, &processTable[1]);
-//     pqueue_insert(pq, &processTable[2]);
-//     pqueue_insert(pq, &processTable[3]);
-//     pqueue_insert(pq, &processTable[4]);
-//     pqueue_change_priority(pq, 5, &processTable[0]);
-//     pqueue_change_priority(pq, 6, &processTable[1]);
-//     pqueue_change_priority(pq, 0, &processTable[2]);
-//     PCB *pqFront;
-//     while (pqFront = pqueue_pop(pq)) {
-//         printf("Process ID: %d, Priority: %d\n", pqFront->processID, pqFront->priority);
-//     }
-//     pqueue_free(pq);
-//     free(processTable);
-// }
-
 void *createHPFPQ () {
     pqueue_t *pq;
     pq = pqueue_init(maxNumOfProcess, cmpPriority, getPriority, setPriority, get_pos, set_pos);
@@ -526,6 +494,11 @@ void removeCurrentProcessFromDs () {
 
 int generatorSchedularQueueId = 0;
 
+// @brief Handles the processes according to the chosen scheduling algorithm
+// @param algorithm The algorithm to be used
+// @param addToDS The function that adds a process to the data structure
+// @param initDS The function that initializes the data structure
+
 static void handleProcesses (algorithm algorithm, addItem addToDS, createDS initDS) {
     int rec_val;
     
@@ -564,6 +537,8 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
     }
 }
 
+// @brief Handles the termination of a child process
+// @param signum The signal number
 
 void childProcessTerminationHandler (int signum) {
     int stat_loc = 0;
@@ -618,8 +593,8 @@ int main (int argc, char *argv[]) {
     algorithmType = atoi(argv[1]);
     quantum = atoi(argv[2]);
     maxNumOfProcess = atoi(argv[3]);
-    
-    //printf("Schedular Id %d\n", getpid());
+
+    // send appropiate function pointers to handle process function    
     switch (algorithmType) {
         case HPF:
             handleProcesses(processHPF, addToHPF, createHPFPQ);
