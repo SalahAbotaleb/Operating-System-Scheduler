@@ -184,7 +184,6 @@ static void setPCBStartTime (PCB *pcbEntry) {
     {
         pcbEntry->startTime = getClk();
         printf("clock %d\n", getClk());
-        printf("Start time %d\n", pcbEntry->startTime);
         if (pcbEntry->startTime == 0)
             pcbEntry->wait = 0;
         else
@@ -248,15 +247,13 @@ static void processRR (void *listT) {
         } else {
             lastNode = lastNode->nxt;
         }
-        //printf("Process %d should start\n", ((PCB *) lastNode->data)->processID);
+        
         PCB *process = lastNode->data;
         setPCBStartTime(process);
-        //printf("after set start time\n");
         writeOutputLogFileStarted(process);
-        //printf("after write to log file\n");
+
         contiuneProcess(process);
-        //printf("after continue process\n");
-        printf("last clk %d\n", lastclk);
+
         isProcessRemoved = 0;
     } else if ((clock - lastclk >= quantum && lastNode != NULL && ((PCB *) lastNode->data)->remainingTime > quantum) || lastNode == NULL) {
         if (lastNode == NULL) {
@@ -267,17 +264,15 @@ static void processRR (void *listT) {
         } else {
             lstPCB = lastNode->data;
             
-            //printf("Prev %d Curr %d\n", lastclk, clock);
             lstPCB->remainingTime = lstPCB->remainingTime - quantum;
             
             stopProcess(lstPCB);
             //print linked list
-            Node *temp = list->head;
-            while (temp != NULL) {
-                printf("Process ID: %d, Priority: %d\n", ((PCB *) temp->data)->processID,
-                       ((PCB *) temp->data)->priority);
-                temp = temp->nxt;
-            }
+            // Node *temp = list->head;
+            // while (temp != NULL) {
+            //     printf("Process ID: %d, Priority: %d\n", ((PCB *) temp->data)->processID,((PCB *) temp->data)->priority);
+            //     temp = temp->nxt;
+            // }
             
             if (lastNode->nxt == NULL) {
                 lastNode = list->head;
@@ -287,17 +282,13 @@ static void processRR (void *listT) {
         }
         lastclk = clock;
         lastsec = clock;
-        printf("Last clk %d\n", lastclk);
         
         PCB *process = lastNode->data;
         
         setPCBStartTime(process);
-        printf("after set start time\n");
         writeOutputLogFileStarted(process);
-        printf("after write to log file\n");
         contiuneProcess(process);
-        printf("after continue process\n");
-        printf("last clk %d\n", lastclk);
+
     } else if (clock != lastsec && ((PCB *) lastNode->data)->remainingTime <= quantum &&
                ((PCB *) lastNode->data)->remainingTime > 0) {
         ((PCB *) lastNode->data)->remainingTime--;
@@ -334,7 +325,7 @@ static void processHPF (void *pqT) {
     
     Time currTime = getClk();
     if (lstTime != currTime && currTime != lstPCB->startTime) {
-        printf("Prev %d Curr %d\n", lstTime, currTime);
+        //printf("Prev %d Curr %d\n", lstTime, currTime);
         lstTime = currTime;
         lstPCB->remainingTime--;
     }
@@ -457,36 +448,36 @@ void assignListToReference (void *list) {
     }
 }
 
-void pqTest () {
-    PCB *processTable;
-    pqueue_t *pq;
-    processTable = malloc(maxNumOfProcess * sizeof(PCB));
-    processTable[0].priority = 0;
-    processTable[0].processID = 0;
-    processTable[1].priority = 1;
-    processTable[1].processID = 1;
-    processTable[2].priority = 2;
-    processTable[2].processID = 2;
-    processTable[3].priority = 3;
-    processTable[3].processID = 3;
-    processTable[4].priority = 4;
-    processTable[4].processID = 4;
-    pq = pqueue_init(maxNumOfProcess, cmpPriority, getPriority, setPriority, get_pos, set_pos);
-    pqueue_insert(pq, &processTable[0]);
-    pqueue_insert(pq, &processTable[1]);
-    pqueue_insert(pq, &processTable[2]);
-    pqueue_insert(pq, &processTable[3]);
-    pqueue_insert(pq, &processTable[4]);
-    pqueue_change_priority(pq, 5, &processTable[0]);
-    pqueue_change_priority(pq, 6, &processTable[1]);
-    pqueue_change_priority(pq, 0, &processTable[2]);
-    PCB *pqFront;
-    while (pqFront = pqueue_pop(pq)) {
-        printf("Process ID: %d, Priority: %d\n", pqFront->processID, pqFront->priority);
-    }
-    pqueue_free(pq);
-    free(processTable);
-}
+// void pqTest () {
+//     PCB *processTable;
+//     pqueue_t *pq;
+//     processTable = malloc(maxNumOfProcess * sizeof(PCB));
+//     processTable[0].priority = 0;
+//     processTable[0].processID = 0;
+//     processTable[1].priority = 1;
+//     processTable[1].processID = 1;
+//     processTable[2].priority = 2;
+//     processTable[2].processID = 2;
+//     processTable[3].priority = 3;
+//     processTable[3].processID = 3;
+//     processTable[4].priority = 4;
+//     processTable[4].processID = 4;
+//     pq = pqueue_init(maxNumOfProcess, cmpPriority, getPriority, setPriority, get_pos, set_pos);
+//     pqueue_insert(pq, &processTable[0]);
+//     pqueue_insert(pq, &processTable[1]);
+//     pqueue_insert(pq, &processTable[2]);
+//     pqueue_insert(pq, &processTable[3]);
+//     pqueue_insert(pq, &processTable[4]);
+//     pqueue_change_priority(pq, 5, &processTable[0]);
+//     pqueue_change_priority(pq, 6, &processTable[1]);
+//     pqueue_change_priority(pq, 0, &processTable[2]);
+//     PCB *pqFront;
+//     while (pqFront = pqueue_pop(pq)) {
+//         printf("Process ID: %d, Priority: %d\n", pqFront->processID, pqFront->priority);
+//     }
+//     pqueue_free(pq);
+//     free(processTable);
+// }
 
 void *createHPFPQ () {
     pqueue_t *pq;
@@ -573,7 +564,7 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
 void childProcessTerminationHandler (int signum) {
     int stat_loc = 0;
     int pid = wait(&stat_loc);
-    printf("Yes sub-process %d is removed\n", pid);
+    //printf("Yes sub-process %d is removed\n", pid);
     isProcessKilled = 1;
     //lstProcessKilled = pid;
 }
