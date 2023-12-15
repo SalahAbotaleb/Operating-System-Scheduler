@@ -40,6 +40,7 @@ static float stdWTA = 0;
 static float stdWTAsq = 0;
 int quantum = 1; //process quantum send by process generator in argument 
 int currquantum; //current quantum for process
+int maxNumOfProcess = 1; //max number of process send by process generator in argument
 
 void initializeQuantum () {
     currquantum = quantum;
@@ -140,7 +141,7 @@ void writeOutputLogFileFinished (PCB *process) {
             process->processID,
             process->arrivalTime,
             process->runTime,
-            process->remainingTime, // the remaining time is not correct as it is not updated from processor (zahar)
+            process->remainingTime, 
             process->wait,
             process->TA,
             process->WTA);
@@ -155,7 +156,10 @@ void stopProcess (PCB *process) {
 
 void contiuneProcess (PCB *process) {
     if (process->startTime != getClk())
+    {
+        //process->wait += getClk() - process->startTime;
         writeOutputLogFileResumed(process);
+    }
     kill(process->mappedProcessID, SIGCONT);
 }
 
@@ -170,28 +174,30 @@ static PCB *createPCBEntry (Process *newProcess) {
     newPCBEntry->remainingTime = newProcess->runTime;
     newPCBEntry->priority = newProcess->priority;
     newPCBEntry->processID = newProcess->id;
-    newPCBEntry->runTime = newProcess->runTime; // needed for output files (zahar)
+    newPCBEntry->runTime = newProcess->runTime; 
     newPCBEntry->startTime = -1;                // to know if it was excuted before
     return newPCBEntry;
 }
 
 static void setPCBStartTime (PCB *pcbEntry) {
-    if (pcbEntry->startTime == -1) // it is working as a flag but i prefer to use a boolean (zahar)
+    if (pcbEntry->startTime == -1)
     {
         pcbEntry->startTime = getClk();
         printf("clock %d\n", getClk());
         printf("Start time %d\n", pcbEntry->startTime);
-        if (pcbEntry->startTime == 0)
-            pcbEntry->wait = 0;
-        else
-            pcbEntry->wait = pcbEntry->startTime - pcbEntry->arrivalTime;
-        totalWaitingTime += pcbEntry->wait;
+        // if (pcbEntry->startTime == 0)
+        //     pcbEntry->wait = 0;
+        // else
+        //     pcbEntry->wait = pcbEntry->startTime - pcbEntry->arrivalTime;
+        // totalWaitingTime += pcbEntry->wait;
     }
 }
 
 static void setPCBFinishedTime (PCB *pcbEntry) {
     pcbEntry->finishTime = getClk();
     pcbEntry->TA = pcbEntry->finishTime - pcbEntry->arrivalTime;
+    pcbEntry->wait = pcbEntry->TA - pcbEntry->runTime;
+    totalWaitingTime += pcbEntry->wait;
     pcbEntry->WTA = (float) pcbEntry->TA / pcbEntry->runTime;
     totalWTA = totalWTA + pcbEntry->WTA;
     stdWTAsq += (pcbEntry->WTA * pcbEntry->WTA);
@@ -230,20 +236,6 @@ static void processRR (void *listT) {
         return;
     }
     static Time lstTime = -1;
-
-
-//    if (lstProcessKilled != -2) {
-//        lstProcessKilled = -2;
-//
-//        PCB *process = lastNode->data;
-//        printf("hena Process ID: %d, Priority: %d\n", process->processID,
-//               process->priority);
-//        setPCBStartTime(process);
-//        writeOutputLogFileStarted(process);
-//        contiuneProcess(process);
-//        lastclk = getClk();
-//        return;
-//    }
     
     int clock = getClk();
     
@@ -257,14 +249,14 @@ static void processRR (void *listT) {
         } else {
             lastNode = lastNode->nxt;
         }
-        printf("Process %d should start\n", ((PCB *) lastNode->data)->processID);
+        //printf("Process %d should start\n", ((PCB *) lastNode->data)->processID);
         PCB *process = lastNode->data;
         setPCBStartTime(process);
-        printf("after set start time\n");
+        //printf("after set start time\n");
         writeOutputLogFileStarted(process);
-        printf("after write to log file\n");
+        //printf("after write to log file\n");
         contiuneProcess(process);
-        printf("after continue process\n");
+        //printf("after continue process\n");
         printf("last clk %d\n", lastclk);
         isProcessRemoved = 0;
     } else if ((clock - lastclk >= quantum && lastNode != NULL && ((PCB *) lastNode->data)->remainingTime > quantum) || lastNode == NULL) {
@@ -276,7 +268,7 @@ static void processRR (void *listT) {
         } else {
             lstPCB = lastNode->data;
             
-            printf("Prev %d Curr %d\n", lastclk, clock);
+            //printf("Prev %d Curr %d\n", lastclk, clock);
             lstPCB->remainingTime = lstPCB->remainingTime - quantum;
             
             stopProcess(lstPCB);
@@ -332,7 +324,8 @@ static void processHPF (void *pqT) {
         setPCBStartTime(lstPCB);
         writeOutputLogFileStarted(lstPCB);
         contiuneProcess(lstPCB);
-    } else if (lstProcessKilled == currProcess) {
+    } else if (isProcessRemoved == 1) {
+        isProcessRemoved = 0;
         currProcess = highestPriorityProcess->mappedProcessID;
         lstPCB = highestPriorityProcess;
         setPCBStartTime(lstPCB);
@@ -370,7 +363,8 @@ static void processSRTN (void *pqT) {
         setPCBStartTime(lstPCB);
         writeOutputLogFileStarted(lstPCB);
         contiuneProcess(lstPCB);
-    } else if (lstProcessKilled == currProcess) {
+    } else if (isProcessRemoved == 1) {
+        isProcessRemoved = 0;
         currProcess = highestPriorityProcess->mappedProcessID;
         lstPCB = highestPriorityProcess;
         setPCBStartTime(lstPCB);
@@ -396,75 +390,6 @@ static void processSRTN (void *pqT) {
         dec = 0;
     }
 }
-
-// zahar is cooking
-// static void processRR(void *listT)
-// {
-//     LinkedList *list = (LinkedList *)listT;
-//     if (list->size == 0)
-//         return;
-
-//     static ProcessID currProcess = -1;
-//     static Time lstTime = -1;
-//     static Node *currProcessNode = NULL;
-//     static Node *nxtProcessNode = NULL;
-//     PCB *headProcess = Peek(list);
-//     if (headProcess == NULL)
-//     {
-//         return;
-//     }
-
-//     if (currProcess == -1)
-//     {
-//         currProcess = headProcess->mappedProcessID;
-//         lstPCB = headProcess;
-//         currProcessNode = list->head;
-//         setPCBStartTime(lstPCB);
-//         writeOutputLogFileStarted(lstPCB);
-//         contiuneProcess(lstPCB);
-//         initializeQuantum();
-//     }
-//     else if (lstProcessKilled == currProcess)
-//     {
-//         if(nxtProcessNode == NULL)
-//             currProcessNode = list->head;
-//         else
-//             currProcessNode = currProcessNode->nxt;
-//         lstPCB = currProcessNode->data;
-//         currProcess = lstPCB->mappedProcessID;
-//         setPCBStartTime(lstPCB);
-//         writeOutputLogFileStarted(lstPCB);
-//         contiuneProcess(lstPCB);
-//         initializeQuantum();
-//     }
-//     else if (currquantum == 0)
-//     {
-//         stopProcess(lstPCB);
-//         if(nxtProcessNode == NULL)
-//             currProcessNode = list->head;
-//         else
-//             currProcessNode = currProcessNode->nxt;
-//         lstPCB = currProcessNode->data;
-//         currProcess = lstPCB->mappedProcessID;
-//         setPCBStartTime(lstPCB);
-//         writeOutputLogFileStarted(lstPCB);
-//         contiuneProcess(lstPCB);
-//         initializeQuantum();
-//     }
-//     nxtProcessNode = currProcessNode->nxt;
-
-//     ///////////////////
-//     // else if(quantum condition)
-//     ////////////////////
-
-//     Time currTime = getClk();
-//     if (lstTime != currTime && currTime != lstPCB->startTime)
-//     {
-//         lstTime = currTime;
-//         lstPCB->remainingTime--;
-//         currquantum--;
-//     }
-// }
 
 int intializeMsgQueue (char *file, int num) {
     key_t key_id;
@@ -536,7 +461,7 @@ void assignListToReference (void *list) {
 void pqTest () {
     PCB *processTable;
     pqueue_t *pq;
-    processTable = malloc(MAX_NUM_OF_PROCESS * sizeof(PCB));
+    processTable = malloc(maxNumOfProcess * sizeof(PCB));
     processTable[0].priority = 0;
     processTable[0].processID = 0;
     processTable[1].priority = 1;
@@ -547,7 +472,7 @@ void pqTest () {
     processTable[3].processID = 3;
     processTable[4].priority = 4;
     processTable[4].processID = 4;
-    pq = pqueue_init(MAX_NUM_OF_PROCESS, cmpPriority, getPriority, setPriority, get_pos, set_pos);
+    pq = pqueue_init(maxNumOfProcess, cmpPriority, getPriority, setPriority, get_pos, set_pos);
     pqueue_insert(pq, &processTable[0]);
     pqueue_insert(pq, &processTable[1]);
     pqueue_insert(pq, &processTable[2]);
@@ -566,26 +491,25 @@ void pqTest () {
 
 void *createHPFPQ () {
     pqueue_t *pq;
-    pq = pqueue_init(MAX_NUM_OF_PROCESS, cmpPriority, getPriority, setPriority, get_pos, set_pos);
+    pq = pqueue_init(maxNumOfProcess, cmpPriority, getPriority, setPriority, get_pos, set_pos);
     return pq;
 }
 
 void *createSRTNPQ () {
     pqueue_t *pq;
-    pq = pqueue_init(MAX_NUM_OF_PROCESS, cmpPriority, getRemainingTimeAsPriority, setRemainingTimeAsPriority, get_pos,
+    pq = pqueue_init(maxNumOfProcess, cmpPriority, getRemainingTimeAsPriority, setRemainingTimeAsPriority, get_pos,
                      set_pos);
     return pq;
 }
 
 void initProcessTable () {
-    processTable = malloc(MAX_NUM_OF_PROCESS * sizeof(PCB *));
+    processTable = malloc(maxNumOfProcess * sizeof(PCB *));
 }
 
 void removeCurrentProcessFromDs () {
     PCB *process;
     switch (algorithmType) {
         case HPF:
-            printf("LST pcb %d\n", lstPCB->mappedProcessID);
             int res = pqueue_remove(pqHPF, (void *) lstPCB);
             if (res != 0) {
                 printf("Removing from PQ fails");
@@ -604,7 +528,6 @@ void removeCurrentProcessFromDs () {
     writeOutputLogFileFinished(process);
     free(process);
     noProcessFinished++;
-    printf("Done Free\n");
 }
 
 int generatorSchedularQueueId = 0;
@@ -618,9 +541,12 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
     writeOutputLogFile();
     int lstclk = -1;
     while (true) {
-        if (getClk() == lstclk)
-            usleep(50);
-        lstclk = getClk();
+        if(algorithmType == RR)
+        {
+            if (getClk() == lstclk)
+                usleep(50);
+            lstclk = getClk();
+        }
         if (isProcessKilled == 1) {
             isProcessKilled = 0;
             removeCurrentProcessFromDs();
@@ -634,11 +560,11 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
             addToDS(list, newPCBEntry);
         }
         algorithm(list);
-        if (noProcessFinished ==
-            MAX_NUM_OF_PROCESS) // 3 should be replaced with acrual # of processes from process_generator (zahar)
+
+        if (noProcessFinished == maxNumOfProcess) 
         {
             writeOutputPerfFile();
-            printf("avgTA: %f\n", totalTA / noProcessFinished);
+            printf("avgTA: %.2f\n", totalTA / noProcessFinished);
             break;
         }
     }
@@ -647,11 +573,10 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
 
 void childProcessTerminationHandler (int signum) {
     int stat_loc = 0;
-    printf("Waittt\n");
     int pid = wait(&stat_loc);
     printf("Yes sub-process %d is removed\n", pid);
     isProcessKilled = 1;
-    lstProcessKilled = pid;
+    //lstProcessKilled = pid;
 }
 
 void closeResources () {
@@ -698,8 +623,9 @@ int main (int argc, char *argv[]) {
     initSchedular();
     algorithmType = atoi(argv[1]);
     quantum = atoi(argv[2]);
+    maxNumOfProcess = atoi(argv[3]);
     
-    printf("Schedular Id %d\n", getpid());
+    //printf("Schedular Id %d\n", getpid());
     switch (algorithmType) {
         case HPF:
             handleProcesses(processHPF, addToHPF, createHPFPQ);
