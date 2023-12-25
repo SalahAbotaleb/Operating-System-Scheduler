@@ -72,10 +72,12 @@ int main (int argc, char *argv[]) {
             currProcess++;
         }
     }
-    while (1) {
-    }
+    sigset_t set;
+    sigemptyset(&set);
+    sigsuspend(&set);
     // 7. Clear clock resources
     destroyClk(true);
+    return 0;
 }
 
 void clearResources (int signum) {
@@ -105,6 +107,8 @@ Process *readInputFiles () {
         processes[i].runTime = atoi(token);
         token = strtok(NULL, "\t");
         processes[i].priority = atoi(token);
+        token = strtok(NULL, "\t");
+        processes[i].memSize = atoi(token);
         
         i++;
     }
