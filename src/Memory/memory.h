@@ -22,6 +22,6 @@ void mergeBlock (Block *block);
 
 Block *allocateMemory (Block *memory, int size);
 
-void deallocateMemory (Block *memory, Block *block);
+void deallocateMemory (Block *block);
 
 #endif //OS_SCHEDULER_MEMORY_H

@@ -59,6 +59,7 @@ typedef struct Process
     int runTime;
     int priority;
     int memSize;
+    int MWT;
 } Process;
 
 typedef int ProcessID;
@@ -81,6 +82,7 @@ typedef struct
     Time TA;
     Block *memoryBlock;
     int memSize;
+    Time MWT;
     float WTA;  
 
 } PCB;
