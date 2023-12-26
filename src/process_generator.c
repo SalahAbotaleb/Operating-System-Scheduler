@@ -109,6 +109,7 @@ Process *readInputFiles () {
         processes[i].priority = atoi(token);
         token = strtok(NULL, "\t");
         processes[i].memSize = atoi(token);
+        processes[i].MWT = 0;
         
         i++;
     }

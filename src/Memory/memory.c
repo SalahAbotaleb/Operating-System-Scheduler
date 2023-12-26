@@ -45,24 +45,45 @@ void splitBlock (Block *block) {
         newBlock->next->prev = newBlock;
 }
 
-// loops through the memory blocks and merges adjacent free blocks
 void mergeBlock (Block *block) {
-    Block *currBlock = block;
-    while (currBlock != NULL) {
-        if (currBlock->allocated == 0 && currBlock->next != NULL && currBlock->next->allocated == 0 &&
-            currBlock->size == currBlock->next->size) {
-            Block *temp = currBlock->next;
-            currBlock->size *= 2;
-            currBlock->end = temp->end;
-            currBlock->next = temp->next;
-            if (currBlock->next != NULL)
-                currBlock->next->prev = currBlock;
-            free(temp);
-        } else if (currBlock->next != NULL && currBlock->size == currBlock->next->size)
-            currBlock = currBlock->next->next;
-        else
-            currBlock = currBlock->next;
+    int l = 0;
+    int r = MAX_SIZE;
+    int mid = (l + r) / 2;
+    while (1) {
+        if (block->start == l && block->end == r - 1)
+            return;
+        if (block->start < mid) {
+            r = mid;
+            mid = (l + r) / 2;
+            
+            if (block->start == l && block->end == r - 1 && block->next != NULL && block->next->allocated == 0 &&
+                block->size == block->next->size) {
+                block->size *= 2;
+                block->end = block->start + block->size - 1;
+                block->next = block->next->next;
+                if (block->next != NULL)
+                    block->next->prev = block;
+                mergeBlock(block);
+                break;
+            }
+            
+        } else {
+            l = mid;
+            mid = (l + r) / 2;
+            
+            if (block->start == l && block->end == r - 1 && block->prev != NULL && block->prev->allocated == 0 &&
+                block->size == block->prev->size) {
+                block->prev->size *= 2;
+                block->prev->end = block->prev->start + block->prev->size - 1;
+                block->prev->next = block->next;
+                if (block->next != NULL)
+                    block->next->prev = block->prev;
+                mergeBlock(block->prev);
+                break;
+            }
+        }
     }
+    
 }
 
 Block *allocateMemory (Block *memory, int size) {
@@ -77,18 +98,38 @@ Block *allocateMemory (Block *memory, int size) {
     return allocateMemory(block, size);
 }
 
-void deallocateMemory (Block *memory, Block *block) {
+void deallocateMemory (Block *block) {
     block->allocated = 0;
-    mergeBlock(memory);
+    mergeBlock(block);
 }
 
-//int main() {
+//int main () {
 //    Block *memory = initMemory();
-//    allocateMemory(memory, 100);
-//    allocateMemory(memory, 100);
-//    allocateMemory(memory, 100);
-//    allocateMemory(memory, 100);
-//    allocateMemory(memory, 100);
-//    deallocateMemory(memory, memory->next->next);
-//    deallocateMemory(memory, memory->next->next->next);
+//    Block *process1 = allocateMemory(memory, 256);
+//    Block *process2 = allocateMemory(memory, 92);
+//    Block *process3 = allocateMemory(memory, 22);
+//    Block *process4 = allocateMemory(memory, 57);
+//    Block *process5 = allocateMemory(memory, 48);
+//    Block *process6 = allocateMemory(memory, 172);
+//    Block *process7 = allocateMemory(memory, 98);
+//    deallocateMemory(process6);
+//    Block *process8 = allocateMemory(memory, 228);
+//    deallocateMemory(process4);
+//    deallocateMemory(process8);
+//    Block *process9 = allocateMemory(memory, 254);
+//    deallocateMemory(process1);
+//    Block *process10 = allocateMemory(memory, 233);
+//    Block *process17 = allocateMemory(memory, 1);
+//    Block *process18 = allocateMemory(memory, 46);
+//    Block *process19 = allocateMemory(memory, 21);
+//    deallocateMemory(process18);
+//    deallocateMemory(process3);
+//    deallocateMemory(process5);
+//    deallocateMemory(process10);
+//    Block *process11 = allocateMemory(memory, 126);
+//    deallocateMemory(process11);
+//    Block *process12 = allocateMemory(memory, 188);
+//    deallocateMemory(process2);
+//    deallocateMemory(process7);
+//    deallocateMemory(process17);
 //}

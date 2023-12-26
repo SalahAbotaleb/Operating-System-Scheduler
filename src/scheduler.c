@@ -76,6 +76,17 @@ void writeOutputLogFile () {
     fclose(file);
 }
 
+void writeMemoryLogFile () {
+    FILE *file = fopen("memory.log", "w");
+    if (file == NULL) {
+        perror("Error opening log file for writing");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(file, "#At time x allocated y bytes for process z from i to j\n");
+    
+    fclose(file);
+}
+
 void writeOutputLogFileStarted (PCB *process) {
     if (process->startTime == getClk()) {
         FILE *file = fopen("scheduler.log", "a");
@@ -178,6 +189,7 @@ static PCB *createPCBEntry (Process *newProcess) {
     newPCBEntry->processID = newProcess->id;
     newPCBEntry->runTime = newProcess->runTime;
     newPCBEntry->startTime = -1;                // to know if it was excuted before
+    newPCBEntry->MWT = newProcess->MWT;
     return newPCBEntry;
 }
 
@@ -480,7 +492,7 @@ static void deallocateProcessMemory (PCB *process) {
            process->processID,
            process->memoryBlock->start, process->memoryBlock->end);
     fclose(file);
-    deallocateMemory(memory, process->memoryBlock);
+    deallocateMemory(process->memoryBlock);
 }
 // @brief Handles the processes according to the chosen scheduling algorithm
 // @param algorithm The algorithm to be used
@@ -515,6 +527,7 @@ static void checkMemoryFree (void *list, LinkedList *waitingList, addItem addToD
             if (allocatedBlock == NULL) {
                 break;
             }
+            process->MWT = getClk() - process->arrivalTime;
             PCB *newPCBEntry = createProcess(process);
             newPCBEntry->memoryBlock = allocatedBlock;
             newPCBEntry->memSize = process->memSize;
@@ -522,6 +535,7 @@ static void checkMemoryFree (void *list, LinkedList *waitingList, addItem addToD
             addToDS(list, newPCBEntry);
             RemoveNodeFromFront(waitingList);
             temp = temp->nxt;
+            free(process);
         }
     }
 }
@@ -551,6 +565,17 @@ PCB *removeCurrentProcessFromDs () {
     return process;
 }
 
+static Process *copyProcess (Process *process) {
+    Process *newProcess = (Process *) malloc(sizeof(Process));
+    newProcess->id = process->id;
+    newProcess->arrivalTime = process->arrivalTime;
+    newProcess->runTime = process->runTime;
+    newProcess->priority = process->priority;
+    newProcess->memSize = process->memSize;
+    newProcess->mtype = process->mtype;
+    return newProcess;
+}
+
 int generatorSchedularQueueId = 0;
 
 static void handleProcesses (algorithm algorithm, addItem addToDS, createDS initDS) {
@@ -560,6 +585,7 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
     void *list = initDS();
     assignListToReference(list);
     writeOutputLogFile();
+    writeMemoryLogFile();
     int lstclk = -1;
     memory = initMemory();
     LinkedList *waitingList = CreateLinkedList();
@@ -584,7 +610,8 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
             Block *allocatedBlock = allocateProcessMemory(memory, receivedProcess.memSize, receivedProcess.id);
             if (allocatedBlock == NULL) {
                 printf("Memory is full\n");
-                AddNodeToBack(waitingList, CreateNode(&receivedProcess));
+                
+                AddNodeToBack(waitingList, CreateNode(copyProcess(&receivedProcess)));
                 
             } else {
                 PCB *newPCBEntry = createProcess(&receivedProcess);
