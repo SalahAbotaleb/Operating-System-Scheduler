@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include "Memory/memory.h"
 
 typedef short bool;
 #define true 1
@@ -57,6 +58,8 @@ typedef struct Process
     int arrivalTime;
     int runTime;
     int priority;
+    int memSize;
+    int MWT;
 } Process;
 
 typedef int ProcessID;
@@ -76,7 +79,10 @@ typedef struct
     Priority priority;
     size_t pqPosition;
     Time wait; 
-    Time TA;   
+    Time TA;
+    Block *memoryBlock;
+    int memSize;
+    Time MWT;
     float WTA;  
 
 } PCB;
