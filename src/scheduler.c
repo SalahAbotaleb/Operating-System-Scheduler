@@ -38,6 +38,7 @@ static float avgWTA = 0;
 static float avgWaiting = 0;
 static float stdWTA = 0;
 static float stdWTAsq = 0;
+Block *memory = NULL;
 int quantum = 1; //process quantum send by process generator in argument 
 int currquantum; //current quantum for process
 int maxNumOfProcess = 1; //max number of process send by process generator in argument
@@ -71,6 +72,17 @@ void writeOutputLogFile () {
         exit(EXIT_FAILURE);
     }
     fprintf(file, "#At time x process y state arr w total z remain y wait k\n");
+    
+    fclose(file);
+}
+
+void writeMemoryLogFile () {
+    FILE *file = fopen("memory.log", "w");
+    if (file == NULL) {
+        perror("Error opening log file for writing");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(file, "#At time x allocated y bytes for process z from i to j\n");
     
     fclose(file);
 }
@@ -141,7 +153,7 @@ void writeOutputLogFileFinished (PCB *process) {
             process->processID,
             process->arrivalTime,
             process->runTime,
-            process->remainingTime, 
+            process->remainingTime,
             process->wait,
             process->TA,
             process->WTA);
@@ -156,8 +168,7 @@ void stopProcess (PCB *process) {
 }
 
 void contiuneProcess (PCB *process) {
-    if (process->startTime != getClk())
-    {
+    if (process->startTime != getClk()) {
         process->state = RESUMED;
         process->wait = getClk() - process->arrivalTime - process->runTime + process->remainingTime;
         writeOutputLogFileResumed(process);
@@ -176,14 +187,14 @@ static PCB *createPCBEntry (Process *newProcess) {
     newPCBEntry->remainingTime = newProcess->runTime;
     newPCBEntry->priority = newProcess->priority;
     newPCBEntry->processID = newProcess->id;
-    newPCBEntry->runTime = newProcess->runTime; 
+    newPCBEntry->runTime = newProcess->runTime;
     newPCBEntry->startTime = -1;                // to know if it was excuted before
+    newPCBEntry->MWT = newProcess->MWT;
     return newPCBEntry;
 }
 
 static void setPCBStartTime (PCB *pcbEntry) {
-    if (pcbEntry->startTime == -1)
-    {
+    if (pcbEntry->startTime == -1) {
         pcbEntry->startTime = getClk();
         pcbEntry->state = STARTED;
         printf("clock %d\n", getClk());
@@ -255,11 +266,12 @@ static void processRR (void *listT) {
         PCB *process = lastNode->data;
         setPCBStartTime(process);
         writeOutputLogFileStarted(process);
-
+        
         contiuneProcess(process);
-
+        
         isProcessRemoved = 0;
-    } else if ((clock - lastclk >= quantum && lastNode != NULL && ((PCB *) lastNode->data)->remainingTime > quantum) || lastNode == NULL) {
+    } else if ((clock - lastclk >= quantum && lastNode != NULL && ((PCB *) lastNode->data)->remainingTime > quantum) ||
+               lastNode == NULL) {
         if (lastNode == NULL) {
             lastNode = list->head;
             if (lastNode == NULL) {
@@ -292,7 +304,7 @@ static void processRR (void *listT) {
         setPCBStartTime(process);
         writeOutputLogFileStarted(process);
         contiuneProcess(process);
-
+        
     } else if (clock != lastsec && ((PCB *) lastNode->data)->remainingTime <= quantum &&
                ((PCB *) lastNode->data)->remainingTime > 0) {
         ((PCB *) lastNode->data)->remainingTime--;
@@ -467,8 +479,68 @@ void *createSRTNPQ () {
 void initProcessTable () {
     processTable = malloc(maxNumOfProcess * sizeof(PCB *));
 }
+static void deallocateProcessMemory (PCB *process) {
+    FILE *file = fopen("memory.log", "a");
+    if (file == NULL) {
+        perror("Error opening log file for writing");
+        exit(EXIT_FAILURE);
+    }
+    fprintf(file, "At time %d freed %d bytes from process %d from %d to %d\n", getClk(), process->memSize,
+            process->processID,
+            process->memoryBlock->start, process->memoryBlock->end);
+    printf("At time %d freed %d bytes from process %d from %d to %d\n", getClk(), process->memSize,
+           process->processID,
+           process->memoryBlock->start, process->memoryBlock->end);
+    fclose(file);
+    deallocateMemory(process->memoryBlock);
+}
+// @brief Handles the processes according to the chosen scheduling algorithm
+// @param algorithm The algorithm to be used
+// @param addToDS The function that adds a process to the data structure
+// @param initDS The function that initializes the data structure
+static Block *allocateProcessMemory (Block *memory, int size, int processId){
+    Block* allocated = allocateMemory(memory, size);
+    
+    if (allocated != NULL) {
+        FILE *file = fopen("memory.log", "a");
+        if (file == NULL) {
+            perror("Error opening log file for writing");
+            exit(EXIT_FAILURE);
+        }
+        fprintf(file, "At time %d allocated %d bytes for process %d from %d to %d\n", getClk(), size, processId,
+                allocated->start, allocated->end);
+        printf("At time %d allocated %d bytes for process %d from %d to %d\n", getClk(), size, processId,
+               allocated->start, allocated->end);
+        fclose(file);
+    }
+    return allocated;
+}
 
-void removeCurrentProcessFromDs () {
+static void checkMemoryFree (void *list, LinkedList *waitingList, addItem addToDS) {
+    if (waitingList->size > 0) {
+        Node *temp = waitingList->head;
+        while (temp != NULL) {
+            Process *process = temp->data;
+            Block *allocatedBlock = allocateProcessMemory(memory, process->memSize, process->id);
+            
+            printf("allocatedBlock %d\n", process->id);
+            if (allocatedBlock == NULL) {
+                break;
+            }
+            process->MWT = getClk() - process->arrivalTime;
+            PCB *newPCBEntry = createProcess(process);
+            newPCBEntry->memoryBlock = allocatedBlock;
+            newPCBEntry->memSize = process->memSize;
+            printf("Process created with pid %d\n", newPCBEntry->mappedProcessID);
+            addToDS(list, newPCBEntry);
+            RemoveNodeFromFront(waitingList);
+            temp = temp->nxt;
+            free(process);
+        }
+    }
+}
+
+PCB *removeCurrentProcessFromDs () {
     PCB *process;
     switch (algorithmType) {
         case HPF:
@@ -486,18 +558,25 @@ void removeCurrentProcessFromDs () {
             process = lastNode->data;
             break;
     }
+    
     setPCBFinishedTime(process);
     writeOutputLogFileFinished(process);
-    free(process);
     noProcessFinished++;
+    return process;
+}
+
+static Process *copyProcess (Process *process) {
+    Process *newProcess = (Process *) malloc(sizeof(Process));
+    newProcess->id = process->id;
+    newProcess->arrivalTime = process->arrivalTime;
+    newProcess->runTime = process->runTime;
+    newProcess->priority = process->priority;
+    newProcess->memSize = process->memSize;
+    newProcess->mtype = process->mtype;
+    return newProcess;
 }
 
 int generatorSchedularQueueId = 0;
-
-// @brief Handles the processes according to the chosen scheduling algorithm
-// @param algorithm The algorithm to be used
-// @param addToDS The function that adds a process to the data structure
-// @param initDS The function that initializes the data structure
 
 static void handleProcesses (algorithm algorithm, addItem addToDS, createDS initDS) {
     int rec_val;
@@ -506,30 +585,45 @@ static void handleProcesses (algorithm algorithm, addItem addToDS, createDS init
     void *list = initDS();
     assignListToReference(list);
     writeOutputLogFile();
+    writeMemoryLogFile();
     int lstclk = -1;
+    memory = initMemory();
+    LinkedList *waitingList = CreateLinkedList();
+    
     while (true) {
-        if(algorithmType == RR)
-        {
-            if (getClk() == lstclk)
+        if (getClk() != lstclk){
+            if (algorithmType == RR)
                 usleep(50);
             lstclk = getClk();
         }
         if (isProcessKilled == 1) {
             isProcessKilled = 0;
-            removeCurrentProcessFromDs();
+            PCB *processRemoved = removeCurrentProcessFromDs();
+            deallocateProcessMemory(processRemoved);
+            checkMemoryFree(list, waitingList, addToDS);
+            free(processRemoved);
             isProcessRemoved = 1;
         }
         rec_val = msgrcv(generatorSchedularQueueId, &receivedProcess, sizeof(Process) - sizeof(long), 0, IPC_NOWAIT);
         if (rec_val != -1) {
             printf("Received %d\n", receivedProcess.id);
-            PCB *newPCBEntry = createProcess(&receivedProcess);
-            printf("Process created with pid %d\n", newPCBEntry->mappedProcessID);
-            addToDS(list, newPCBEntry);
+            Block *allocatedBlock = allocateProcessMemory(memory, receivedProcess.memSize, receivedProcess.id);
+            if (allocatedBlock == NULL) {
+                printf("Memory is full\n");
+                
+                AddNodeToBack(waitingList, CreateNode(copyProcess(&receivedProcess)));
+                
+            } else {
+                PCB *newPCBEntry = createProcess(&receivedProcess);
+                newPCBEntry->memoryBlock = allocatedBlock;
+                newPCBEntry->memSize = receivedProcess.memSize;
+                printf("Process created with pid %d\n", newPCBEntry->mappedProcessID);
+                addToDS(list, newPCBEntry);
+            }
         }
         algorithm(list);
-
-        if (noProcessFinished == maxNumOfProcess) 
-        {
+        
+        if (noProcessFinished == maxNumOfProcess) {
             writeOutputPerfFile();
             printf("avgTA: %.2f\n", totalTA / noProcessFinished);
             break;
@@ -593,7 +687,7 @@ int main (int argc, char *argv[]) {
     algorithmType = atoi(argv[1]);
     quantum = atoi(argv[2]);
     maxNumOfProcess = atoi(argv[3]);
-
+    
     // send appropiate function pointers to handle process function    
     switch (algorithmType) {
         case HPF:
