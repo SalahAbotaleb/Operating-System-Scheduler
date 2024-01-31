@@ -79,11 +79,6 @@ The OS Scheduler with Memory Allocation is dedicated to implementing a CPU sched
 - The program will generate a file called "memory.log" that contains the following information:
     - The order of allocation of the processes.
     - The order of deallocation of the processes.
-    - The fragmentation for each process.
-    - The external fragmentation.
-    - The average internal fragmentation.
-    - The average turnaround time for each process.
-    - The average weighted turnaround time for each process.
 
     ![Memory_Log.png](imgs%2FMemory_Log.png)
 
